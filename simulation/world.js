@@ -8,7 +8,7 @@ import { findRoute } from './navigation.js';
 import { proposeRelationship, respondToProposal, endRelationship } from './romance.js';
 import { moodFrom } from './mood.js';
 
-export const ENGINE_VERSION = 4;
+export const ENGINE_VERSION = 5;
 export const SCHEMA_VERSION = 1;
 const MINUTE=60000, HOUR=60*MINUTE;
 const limit=(n,min=0,max=100)=>Math.max(min,Math.min(max,n));
@@ -23,6 +23,7 @@ const definitions={
  asearse:{label:'aseándose',minutes:10,need:'higiene',gain:70,resource:'bathroom'},
  jugar:{label:'jugando al ordenador',minutes:45,need:'diversion',gain:30,resource:'computer'},
  estudiar:{label:'estudiando',minutes:40,need:'diversion',gain:4,resource:'computer'},
+ limpiar:{label:'recogiendo y limpiando la cocina',minutes:18,need:'diversion',gain:0,resource:'kitchen'},
  descansar:{label:'descansando',minutes:25,need:'energia',gain:8,resource:'sofa'},
  leer:{label:'leyendo',minutes:30,need:'diversion',gain:18,resource:null},
  charlar:{label:'charlando',minutes:8,need:'compania',gain:22,resource:null}
@@ -33,7 +34,7 @@ function inSleepWindow(hour,profile){const duration=(profile.wakeHour-profile.sl
 function event(world,type,person,at,extra={}){world.events.push({id:world.worldId+':'+(++world.eventSequence),type,personId:person.id,at,...extra});if(world.events.length>500)world.events.splice(0,world.events.length-500)}
 export function createWorld({worldId='casa',seed=123456,now=Date.now(),timezone='Europe/Madrid'}={}){
  if(!Number.isFinite(now)||!Number.isInteger(seed))throw new TypeError('Reloj o semilla inválidos');
- return {worldId,schemaVersion:SCHEMA_VERSION,simulationVersion:ENGINE_VERSION,seed,randomState:seed>>>0,worldVersion:0,lastSimulatedAt:now,timezone,eventSequence:0,events:[],reservations:{},people:residents.map(({identity,profile},i)=>({id:identity.id,name:identity.name,homeId:identity.homeId,profile,needs:{saciedad:65+i%5*4,energia:65+i%4*5,higiene:75,compania:60,diversion:65,bano:75},action:null,learned:{skills:{},preferences:{}},memories:[],relationships:{}}))};
+ return {worldId,schemaVersion:SCHEMA_VERSION,simulationVersion:ENGINE_VERSION,seed,randomState:seed>>>0,worldVersion:0,lastSimulatedAt:now,timezone,eventSequence:0,events:[],reservations:{},households:Object.fromEntries(['piso-1','piso-2','piso-3','piso-4'].map(id=>[id,{mess:0}])),people:residents.map(({identity,profile},i)=>({id:identity.id,name:identity.name,homeId:identity.homeId,profile,needs:{saciedad:65+i%5*4,energia:65+i%4*5,higiene:75,compania:60,diversion:65,bano:75},action:null,learned:{skills:{},preferences:{}},memories:[],relationships:{}}))};
 }
 function choose(world,p,at){
  const hour=localHour(at,'UTC'),sleepTime=inSleepWindow(hour,p.profile),n=p.needs,options=[];
@@ -41,7 +42,9 @@ function choose(world,p,at){
   if(id==='charlar'||id==='esperar')continue; // Conversación compartida se incorpora con consentimiento en una fase posterior.
   const key=a.resource?(p.homeId+':'+a.resource+(['bed','computer'].includes(a.resource)?':'+p.id:'')):null;
   if(key&&world.reservations[key]&&world.reservations[key].until>at)continue;
-  let score=urgency(n[a.need])*.65;
+  const mess=world.households[p.homeId]?.mess??0;
+  if(id==='limpiar'&&mess<20)continue;
+  let score=id==='limpiar'?(.08+mess/100*(.55+.25*(p.profile.traits.orden??.5))):urgency(n[a.need])*.65;
   if(id==='dormir')score+=sleepTime?.55:-.15;
   if(id==='comer'&&[8,9,13,14,20,21].includes(hour))score+=.18;
   if(id==='jugar'&&p.profile.interests.includes('ordenador'))score+=.16;
@@ -63,7 +66,7 @@ function choose(world,p,at){
 }
 const homes={'piso-1':[-10,-7],'piso-2':[10,-7],'piso-3':[-10,7],'piso-4':[10,7]};
 function roomPosition(p){const [cx,cz]=homes[p.homeId];const slot=residents.filter(r=>r.identity.homeId===p.homeId).findIndex(r=>r.identity.id===p.id);return {x:cx-7+Math.max(0,slot)*3.5+2.5,z:cz-6+3.7}}
-function destination(p,id){const [cx,cz]=homes[p.homeId];if(id==='pasear')return {x:0,z:16};if(['dormir','jugar','estudiar'].includes(id))return roomPosition(p);if(['asearse','usar_bano'].includes(id))return {x:cx+.2,z:cz+3.6};if(id==='comer')return {x:cx-1,z:cz+1};return {x:cx+1,z:cz+1}}
+function destination(p,id){const [cx,cz]=homes[p.homeId];if(id==='pasear')return {x:0,z:16};if(['dormir','jugar','estudiar'].includes(id))return roomPosition(p);if(['asearse','usar_bano'].includes(id))return {x:cx+.2,z:cz+3.6};if(id==='comer'||id==='limpiar')return {x:cx-1,z:cz+1};return {x:cx+1,z:cz+1}}
 function routeFor(p,to){return findRoute(p.position??roomPosition(p),to)}
 function acceptsInvitation(world,p,other){const tension=p.relationships?.[other.id]?.tension??0;const socialNeed=(100-p.needs.compania)/100;const chance=Math.max(.1,Math.min(.9,.25+.35*p.profile.traits.sociabilidad+.3*socialNeed-tension/200));return random(world)<chance}
 function start(world,p,at,forced=null){
@@ -94,6 +97,11 @@ function finish(world,p,at){
    }
   }
  }
+ if(action.id==='comer')world.households[p.homeId].mess=limit(world.households[p.homeId].mess+12);
+ if(action.id==='limpiar'){
+  const home=world.households[p.homeId];home.mess=limit(home.mess-45);
+  event(world,'cleaning_finished',p,at,{homeId:p.homeId,mess:home.mess});
+ }
  if(def.gain)p.needs[def.need]=limit(p.needs[def.need]+def.gain);
  if(action.resource&&world.reservations[action.resource]?.personId===p.id){delete world.reservations[action.resource];if(action.resource.endsWith(':kitchen'))releaseKitchen(world,p,at)}
  const skillByAction={jugar:'juegos',estudiar:'estudio',comer:'cocina',practicar:'aficiones'};
@@ -116,7 +124,7 @@ function positionDuring(action,fallback,at){
 }
 function addressUrgentNeed(world,p,at){
  const old=p.action;
- if(!old||!['practicar','ver_tv','pasear','jugar','estudiar','descansar','leer','esperar'].includes(old.id))return false;
+ if(!old||!['practicar','ver_tv','pasear','jugar','estudiar','descansar','leer','esperar','limpiar'].includes(old.id))return false;
  const critical=p.needs.bano<12?'usar_bano':p.needs.saciedad<10?'comer':p.needs.energia<8?'dormir':null;
  if(!critical)return false;
  const resource=definitions[critical].resource;
@@ -149,6 +157,11 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
  if(world.simulationVersion<2){const initial=new Map(residents.map(r=>[r.identity.id,r.profile]));for(const p of world.people){if(p.profile.provenance==='provisional'&&initial.has(p.id))p.profile={...p.profile,traits:initial.get(p.id).traits}}world.simulationVersion=2}
  if(world.simulationVersion<3){for(const p of world.people){p.position=p.position??roomPosition(p);if(p.action&&!p.action.route){p.action.route=[p.position];p.action.travelMs=0}}world.simulationVersion=3}
  if(world.simulationVersion<4){for(const p of world.people)if(!Number.isFinite(p.needs.bano))p.needs.bano=75;world.simulationVersion=4}
+ if(world.simulationVersion<5){
+  world.households??={};
+  for(const id of Object.keys(homes))world.households[id]??={mess:0};
+  world.simulationVersion=5;
+ }
  if(!Number.isFinite(target)||target<world.lastSimulatedAt)throw new RangeError('El reloj no puede retroceder');
  if(!Number.isInteger(maxMinutes)||maxMinutes<1||maxMinutes>10080)throw new RangeError('Límite de lote inválido');
  const end=Math.min(target,world.lastSimulatedAt+maxMinutes*MINUTE);
