@@ -18,7 +18,7 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 - [x] Suspensión de sucesos sin visitas.
 - [ ] Trayectos reales por puertas y objetos; las rutas y gestos actuales son provisionales.
 - [ ] Comprobación integral con dos clientes y reinicios.
-- [ ] Toda la convivencia y comportamiento social de esta especificación.
+- [ ] Convivencia completa: hay conversaciones y relaciones básicas; faltan conflictos, planes, reparación y romance integrado.
 
 ## Fase 1: motor doméstico
 - [ ] Separar identidad, perfil, estado y aprendizaje; validar esquema y migraciones.
@@ -27,15 +27,15 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 - [ ] Acciones con precondiciones, utilidad, duraciones, interrupciones y resultados únicos.
 - [ ] Recursos con capacidad, reservas, vencimiento y alternativas.
 - [ ] Habitaciones, puertas y rutas válidas sin atravesar muebles; estados de ejecución.
-- [ ] Cocina/comida, ocio, estudio, ordenador, descanso y limpieza.
+- [ ] Cocina/comida, ocio, estudio, ordenador, descanso y limpieza. Implementadas acciones iniciales de comida, sueño, aseo, estudio y ocio; limpieza y preparación detallada pendientes.
 - [ ] Estado canónico transaccional, control de concurrencia y eventos idempotentes.
-- [ ] Dos clientes, reconexión, reinicio y escenarios de 7 días con semillas.
+- [ ] Dos clientes, reconexión, reinicio y escenarios de 7 días con semillas. Probados determinismo y siete días en el núcleo; faltan pruebas integrales de concurrencia y reinicio.
 
 ## Fase 2: convivencia
-- [ ] Encuentros con consentimiento y conversación única por pareja. Base provisional de conversaciones entre vecinos disponibles y próximos, sin diálogo visible.
+- [ ] Encuentros con consentimiento y conversación única por pareja. Base provisional con personas disponibles y próximas, bocadillos y diario; faltan invitaciones y consentimiento explícito más elaborado.
 - [ ] Amistad, confianza, tensión y familiaridad dirigidas; efectos acotados y rendimientos decrecientes. Amistad, confianza y familiaridad básicas implementadas; faltan conflictos y comportamiento más rico.
 - [ ] Conflictos motivados por sucesos, reparación y consecuencias de acuerdos.
-- [ ] Romance ficticio solo si está configurado; interés unilateral y reciprocidad, rechazo y ruptura gradual.
+- [ ] Romance ficticio solo si está configurado; interés unilateral y reciprocidad, rechazo y ruptura gradual. Módulo de propuestas probado aisladamente; no está integrado ni activo.
 - [ ] Planes y compromisos domésticos con aceptación o rechazo.
 
 ## Fase 3: memoria y evolución
