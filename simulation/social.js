@@ -11,6 +11,8 @@ function addEvent(world,type,at,details){
 export function openConversation(world,a,b,at){
  if(a.id===b.id||a.homeId!==b.homeId||a.action||b.action)return null;
  world.conversations ??={};
+ const finished=Object.values(world.conversations).filter(c=>c.finished).sort((a,b)=>a.end-b.end);
+ while(finished.length>100){const old=finished.shift();delete world.conversations[old.id]}
  if(Object.values(world.conversations).some(c=>!c.finished&&c.participants.some(id=>id===a.id||id===b.id)))return null;
  const shared=a.profile.interests.filter(x=>b.profile.interests.includes(x));
  const topic=shared[0] ?? 'el día';
