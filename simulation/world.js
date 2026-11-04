@@ -1,6 +1,7 @@
 // Núcleo determinista independiente de la representación y del alojamiento.
 import { residents } from './profiles.js';
 import { advanceNeeds, urgency } from './needs.js';
+import { openConversation, finishConversation } from './social.js';
 
 export const ENGINE_VERSION = 3;
 export const SCHEMA_VERSION = 1;
@@ -57,6 +58,7 @@ function start(world,p,at){
 }
 function finish(world,p,at){
  const action=p.action,def=definitions[action.id];
+ if(action.conversationId)finishConversation(world,action.conversationId,at);
  if(def.gain)p.needs[def.need]=limit(p.needs[def.need]+def.gain);
  if(action.resource&&world.reservations[action.resource]?.personId===p.id)delete world.reservations[action.resource];
  if(['jugar','estudiar'].includes(action.id)){const old=p.learned.skills[action.id]??0;p.learned.skills[action.id]=Math.min(100,old+.25)}
@@ -85,8 +87,15 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
  const end=Math.min(target,world.lastSimulatedAt+maxMinutes*MINUTE);
  while(world.lastSimulatedAt<end){
   const at=world.lastSimulatedAt,step=Math.min(MINUTE,end-at),next=at+step;
+  for(const p of world.people)if(p.action&&p.action.until<=at)finish(world,p,at);
+  // Dos personas libres y próximas pueden aceptar una charla; una sola acción compartida.
+  const available=world.people.filter(p=>!p.action);
+  for(let i=0;i<available.length;i++){
+   const a=available[i];if(a.action||random(world)>.35)continue;
+   const b=available.slice(i+1).find(q=>!q.action&&q.homeId===a.homeId&&q.position&&a.position&&Math.hypot(q.position.x-a.position.x,q.position.z-a.position.z)<3);
+   if(b)openConversation(world,a,b,at);
+  }
   for(const p of world.people){
-   if(p.action&&p.action.until<=at)finish(world,p,at);
    if(!p.action)start(world,p,at);
    p.needs=advanceNeeds(p.needs,step/HOUR,{sleeping:p.action?.id==='dormir',sociability:p.profile.traits.sociabilidad});
   }
