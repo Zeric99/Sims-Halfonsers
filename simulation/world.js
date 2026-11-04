@@ -2,7 +2,7 @@
 import { residents } from './profiles.js';
 import { advanceNeeds, urgency } from './needs.js';
 
-export const ENGINE_VERSION = 1;
+export const ENGINE_VERSION = 2;
 export const SCHEMA_VERSION = 1;
 const MINUTE=60000, HOUR=60*MINUTE;
 const limit=(n,min=0,max=100)=>Math.max(min,Math.min(max,n));
@@ -59,6 +59,7 @@ function finish(world,p,at){
 }
 // Procesamiento acotado: el llamador persiste cada lote antes de continuar.
 export function advanceWorld(world,target,{maxMinutes=720}={}){
+ if(world.simulationVersion<2){const initial=new Map(residents.map(r=>[r.identity.id,r.profile]));for(const p of world.people){if(p.profile.provenance==='provisional'&&initial.has(p.id))p.profile={...p.profile,traits:initial.get(p.id).traits}}world.simulationVersion=2}
  if(!Number.isFinite(target)||target<world.lastSimulatedAt)throw new RangeError('El reloj no puede retroceder');
  if(!Number.isInteger(maxMinutes)||maxMinutes<1||maxMinutes>10080)throw new RangeError('Límite de lote inválido');
  const end=Math.min(target,world.lastSimulatedAt+maxMinutes*MINUTE);
