@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const root=document.querySelector('#world');
 const scene=new THREE.Scene();scene.background=new THREE.Color(0xb8d99c);
@@ -9,9 +10,18 @@ const ambient=new THREE.HemisphereLight(0xffffff,0x6c8061,2);scene.add(ambient);
 const mat=c=>new THREE.MeshStandardMaterial({color:c,roughness:.85});const materials={grass:mat(0x98c77a),wood:mat(0xe1bd8d),tile:mat(0xdbe6d6),wall:mat(0xbba587),white:mat(0xf8f3e8),blanket:mat(0x7bad9f),brown:mat(0x997054),dark:mat(0x425e50),garden:mat(0x7ab85f)};
 const obstacles=[];
 function box(x,y,z,w,h,d,m){if(h>.3 && y-h/2<.26 && w<39 && d<37)obstacles.push({x,z,w,d});const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;scene.add(o);return o}
+function soft(x,y,z,w,h,d,m,r=.08){const o=new THREE.Mesh(new RoundedBoxGeometry(w,h,d,3,Math.min(r,w/3,h/3,d/3)),m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;scene.add(o);return o}
+function cylinder(x,y,z,rt,rb,h,m){const o=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,20),m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;scene.add(o);return o}
+function woodTexture(){const c=document.createElement('canvas');c.width=512;c.height=512;const q=c.getContext('2d');q.fillStyle='#efd3a9';q.fillRect(0,0,512,512);for(let y=0;y<512;y+=64){q.fillStyle=y%128?'#e5c493':'#edd0a3';q.fillRect(0,y,512,63);q.strokeStyle='#c49b72';q.lineWidth=2;q.strokeRect(0,y,512,64);for(let x=(y%128?128:0);x<512;x+=256){q.beginPath();q.moveTo(x,y);q.lineTo(x,y+64);q.stroke()}q.strokeStyle='rgba(130,87,55,.14)';for(let j=0;j<4;j++){q.beginPath();q.moveTo(0,y+10+j*13);q.bezierCurveTo(160,y+3+j*13,300,y+18+j*13,512,y+8+j*13);q.stroke()}}const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(4,4);t.anisotropy=renderer.capabilities.getMaxAnisotropy();return t}
+materials.wood.map=woodTexture();materials.wood.needsUpdate=true;
 function label(text,x,y,z,color='#294036',scale=1){const c=document.createElement('canvas');c.width=512;c.height=128;const ctx=c.getContext('2d');ctx.fillStyle='rgba(255,250,232,.91)';ctx.roundRect(10,20,492,86,28);ctx.fill();ctx.fillStyle=color;ctx.font='bold 42px system-ui';ctx.textAlign='center';ctx.fillText(text,256,78);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthTest:false}));s.scale.set(3.6*scale,.9*scale,1);s.position.set(x,y,z);scene.add(s)}
 box(0,-.22,1,39,.4,37,materials.grass);box(0,.01,0,4,.12,26,materials.wall);for(let z=-11;z<13;z+=2)box(0,.08,z,3.9,.03,.04,materials.white);
-function bed(x,z){box(x,.27,z,1.15,.4,1.75,materials.brown);box(x,.52,z,1.03,.17,1.6,materials.white);box(x,.64,z+.25,1.02,.12,1.02,materials.blanket);box(x,.66,z-.48,.8,.12,.35,materials.white);box(x,.85,z-.88,1.2,.8,.12,materials.brown);box(x,.72,z+.68,1.04,.04,.1,mat(0x61978a));box(x,.72,z+.35,.95,.025,.025,mat(0x96c5b5));}
+function bed(x,z){const frame=mat(0x73513b),linen=mat(0xe9eddf),quilt=mat(0x78a99c);
+ soft(x,.25,z,1.18,.28,1.85,frame,.08);for(const dx of [-.44,.44])for(const dz of [-.72,.72])cylinder(x+dx,.14,z+dz,.065,.075,.25,frame);
+ soft(x,.47,z,1.06,.24,1.68,linen,.1);soft(x,.61,z+.27,1.05,.18,1.05,quilt,.09);
+ soft(x,.64,z-.48,.77,.16,.34,materials.white,.1);soft(x,.77,z-.91,1.22,.9,.14,frame,.08);
+ box(x,.72,z+.46,.98,.02,.025,mat(0xaed1c0));box(x,.72,z+.1,.98,.02,.025,mat(0xaed1c0));}
+function diningChair(x,z,dir){const m=mat(0x765943),pad=mat(0x7eaaa1);soft(x,.48,z,.55,.13,.52,pad,.06);for(const dx of [-.2,.2])for(const dz of [-.18,.18])cylinder(x+dx,.24,z+dz,.035,.035,.46,m);soft(x,.82,z+dir*.23,.55,.65,.1,m,.04);soft(x,.83,z+dir*.18,.42,.46,.06,pad,.04)}
 function flat(cx,cz,n,title,names){const x0=cx-7,z0=cz-6;box(cx,.03,cz,14,.15,12,materials.wood); // cutaway low walls
 box(cx,.45,z0,14,.8,.12,materials.wall);for(const side of [-1,1]){const wx=cx+side*7;if((cx<0&&side===1)||(cx>0&&side===-1)){box(wx,.45,cz-4,.12,.8,4,materials.wall);box(wx,.45,cz+3,.12,.8,6,materials.wall)}else box(wx,.45,cz,.12,.8,12,materials.wall)}
 const rooms=[[x0,z0],[x0+3.5,z0],[x0+7,z0],[x0+10.5,z0]];
@@ -34,10 +44,10 @@ for(let j=0;j<3;j++){box(x0+.7+j*1.3,.73,cz+4.26,1.05,.04,.04,mat(0xc8cfc2));box
 // Punto de baño provisional compartido por los habitantes del piso.
 box(cx+.2,.3,cz+4.8,.7,.55,.7,materials.white);box(cx+.2,.61,cz+5.07,.7,.35,.2,materials.white);box(cx+1.2,.55,cz+5,.65,1,.5,mat(0xddebf0));
 // Electrodomésticos, encimera y vajilla en cada vivienda.
-box(x0+4.9,1.0,cz+4.7,1.1,1.9,.9,mat(0xe8ebe3));box(x0+.8,1.1,cz+5.0,.45,.45,.08,mat(0x607c76));
+soft(x0+4.9,1.0,cz+4.7,1.1,1.9,.9,mat(0xe8ebe3),.07);box(x0+4.9,1.05,cz+4.235,1.02,.025,.02,mat(0xa5b4ad));soft(x0+4.55,1.38,cz+4.22,.08,.45,.06,mat(0x889b96),.025);soft(x0+4.55,.65,cz+4.22,.08,.32,.06,mat(0x889b96),.025);box(x0+.8,1.1,cz+5.0,.45,.45,.08,mat(0x607c76));
 for(let k=0;k<3;k++)box(x0+2.5+k*.3,1.09,cz+4.7,.16,.06,.16,mat(0x465953));
-box(cx+3.5,.7,cz+3,2.3,.14,1.3,materials.brown);for(const dx of [-.95,.95])for(const dz of [-.46,.46])box(cx+3.5+dx,.35,cz+3+dz,.12,.7,.12,materials.brown);
-for(let dx of [-.6,.6]){let plate=new THREE.Mesh(new THREE.CylinderGeometry(.22,.22,.035,16),materials.white);plate.position.set(cx+3.5+dx,.69,cz+3);scene.add(plate)}for(let dx of [-1.6,1.6])for(let dz of [-.6,.6])box(cx+3.5+dx,.28,cz+3+dz,.5,.5,.5,materials.dark);label(title,cx,2.4,z0+.5,'#25402f',.8)}
+soft(cx+3.5,.7,cz+3,2.3,.14,1.3,materials.brown,.06);for(const dx of [-.95,.95])for(const dz of [-.46,.46])box(cx+3.5+dx,.35,cz+3+dz,.12,.7,.12,materials.brown);
+for(let dx of [-.6,.6]){let plate=new THREE.Mesh(new THREE.CylinderGeometry(.22,.22,.035,16),materials.white);plate.position.set(cx+3.5+dx,.79,cz+3);scene.add(plate)}for(let dx of [-1.6,1.6])for(let dz of [-.6,.6])diningChair(cx+3.5+dx,cz+3+dz,dz>0?1:-1);label(title,cx,2.4,z0+.5,'#25402f',.8)}
 const roomPositions=[];
 const groups=[['Eric','Linkal','Mei','Yaiza'],['Snow','Adrián','Arian','Lolo'],['Delos','May','Pablo'],['Aisuke','Catalán','David']];flat(-10,-7,4,'PISO 1',groups[0]);flat(10,-7,4,'PISO 2',groups[1]);flat(-10,7,3,'PISO 3',groups[2]);flat(10,7,3,'PISO 4',groups[3]);
 box(0,.05,17,36,.13,7,materials.garden);label('JARDÍN COMUNITARIO',0,1,18,'#2d5030',1);function tree(x,z){box(x,.8,z,.45,1.6,.45,materials.brown);let crown=new THREE.Mesh(new THREE.SphereGeometry(1.1,24,16),mat(0x4d9852));crown.position.set(x,2,z);crown.castShadow=true;scene.add(crown)}tree(-14,17);tree(14,17);tree(-17,14);tree(17,14);
