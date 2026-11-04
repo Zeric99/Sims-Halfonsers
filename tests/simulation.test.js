@@ -12,7 +12,7 @@ test('un ciclo simulado conserva diversidad y limita la lectura',()=>{
   for(const p of world.people){kinds.add(p.action?.id);for(const value of Object.values(p.needs))assert.ok(value>=0&&value<=100)}
  }
  assert.ok(kinds.size>=5);
- assert.ok(kinds.has('charlar'));
+ assert.ok(world.events.some(e=>e.type==='conversation_finished'));
 });
 test('ausencia conserva relaciones y no crea eventos',()=>{
  const world=createWorld({seed:3,now:0});advanceWorld(world,hour);
