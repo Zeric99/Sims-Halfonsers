@@ -2,7 +2,7 @@
 import { residents } from './profiles.js';
 import { advanceNeeds, urgency } from './needs.js';
 
-export const ENGINE_VERSION = 2;
+export const ENGINE_VERSION = 3;
 export const SCHEMA_VERSION = 1;
 const MINUTE=60000, HOUR=60*MINUTE;
 const limit=(n,min=0,max=100)=>Math.max(min,Math.min(max,n));
@@ -43,10 +43,15 @@ function choose(world,p,at){
  options.sort((a,b)=>b.score-a.score);
  return options[0];
 }
+const homes={'piso-1':[-10,-7],'piso-2':[10,-7],'piso-3':[-10,7],'piso-4':[10,7]};
+function roomPosition(p){const [cx,cz]=homes[p.homeId];const slot=residents.filter(r=>r.identity.homeId===p.homeId).findIndex(r=>r.identity.id===p.id);return {x:cx-7+Math.max(0,slot)*3.5+2.5,z:cz-6+3.7}}
+function destination(p,id){const [cx,cz]=homes[p.homeId];if(['dormir','jugar','estudiar'].includes(id))return roomPosition(p);if(['comer','asearse'].includes(id))return {x:cx-1,z:cz+1};return {x:cx+1,z:cz+1}}
+function routeFor(p,to){const [,cz]=homes[p.homeId],from=p.position??roomPosition(p),hall=cz-.5;return [from,{x:from.x,z:hall},{x:to.x,z:hall},to]}
 function start(world,p,at){
  const selected=choose(world,p,at);if(!selected)return;
  const def=definitions[selected.id],until=at+def.minutes*MINUTE;
- p.action={id:selected.id,label:def.label,start:at,until,resource:selected.key};
+ const route=routeFor(p,destination(p,selected.id));let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const travelMs=Math.min(Math.round(length*2000),Math.max(0,(until-at)-1000));
+ p.action={id:selected.id,label:def.label,start:at,until,resource:selected.key,route,travelMs};
  if(selected.key)world.reservations[selected.key]={personId:p.id,until};
  event(world,'action_started',p,at,{action:selected.id});
 }
@@ -55,11 +60,12 @@ function finish(world,p,at){
  if(def.gain)p.needs[def.need]=limit(p.needs[def.need]+def.gain);
  if(action.resource&&world.reservations[action.resource]?.personId===p.id)delete world.reservations[action.resource];
  if(['jugar','estudiar'].includes(action.id)){const old=p.learned.skills[action.id]??0;p.learned.skills[action.id]=Math.min(100,old+.25)}
- p.lastAction=action.id;p.action=null;event(world,'action_finished',p,at,{action:action.id});
+ if(action.route?.length)p.position=action.route[action.route.length-1];p.lastAction=action.id;p.action=null;event(world,'action_finished',p,at,{action:action.id});
 }
 // Procesamiento acotado: el llamador persiste cada lote antes de continuar.
 export function advanceWorld(world,target,{maxMinutes=720}={}){
  if(world.simulationVersion<2){const initial=new Map(residents.map(r=>[r.identity.id,r.profile]));for(const p of world.people){if(p.profile.provenance==='provisional'&&initial.has(p.id))p.profile={...p.profile,traits:initial.get(p.id).traits}}world.simulationVersion=2}
+ if(world.simulationVersion<3){for(const p of world.people){p.position=p.position??roomPosition(p);if(p.action&&!p.action.route){p.action.route=[p.position];p.action.travelMs=0}}world.simulationVersion=3}
  if(!Number.isFinite(target)||target<world.lastSimulatedAt)throw new RangeError('El reloj no puede retroceder');
  if(!Number.isInteger(maxMinutes)||maxMinutes<1||maxMinutes>10080)throw new RangeError('Límite de lote inválido');
  const end=Math.min(target,world.lastSimulatedAt+maxMinutes*MINUTE);
