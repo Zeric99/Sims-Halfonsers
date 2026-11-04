@@ -8,11 +8,12 @@ async function refresh(){
   if(world.worldVersion<lastVersion)return;
   lastVersion=world.worldVersion;
   window.sharedWorld=data;window.dispatchEvent(new CustomEvent('shared-world',{detail:data}));
-  const date=new Intl.DateTimeFormat('es-ES',{timeZone:world.timezone,dateStyle:'medium',timeStyle:'short'}).format(world.lastSimulatedAt);
-  clock.textContent=date+(data.recovering?' · recuperando tiempo anterior':' · estado compartido')+'.';
+  const date=new Intl.DateTimeFormat('es-ES',{timeZone:'UTC',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(world.lastSimulatedAt);
+  const hour=new Date(world.lastSimulatedAt).getUTCHours();
+  clock.textContent=(hour>=7&&hour<23?'☀ Día':'🌙 Noche')+' · '+date+' · ciclo de 30 minutos';
   const fragment=document.createDocumentFragment();
   for(const person of world.people){const row=document.createElement('p');row.style.margin='5px 0';const name=document.createElement('strong');name.textContent=person.name+': ';row.append(name,document.createTextNode(person.action?.label||'descansando'));fragment.append(row)}
   list.replaceChildren(fragment);
  }catch{clock.textContent='No se ha podido conectar con el mundo compartido. Reintentando…'}
 }
-refresh();setInterval(refresh,15000);
+refresh();setInterval(refresh,5000);
