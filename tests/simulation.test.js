@@ -37,3 +37,25 @@ test('misma semilla y reloj producen el mismo mundo',()=>{
  const a=createWorld({seed:42,now:0}),b=createWorld({seed:42,now:0});
  advanceWorld(a,hour);advanceWorld(b,hour);assert.deepEqual(a,b);
 });
+
+test('un acuerdo se cumple solo al liberar el recurso',async()=>{
+ const {recordKitchenWait,attemptKitchenRepair,releaseKitchen}=await import('../simulation/conflicts.js');
+ const world=createWorld({now:0}),[a,b]=world.people;
+ const c=recordKitchenWait(world,a,b,0);assert.ok(c);
+ const tension=a.relationships[b.id].tension;
+ assert.equal(attemptKitchenRepair(world,{finished:true,participants:[a.id,b.id]},3600000,0),true);
+ assert.equal(c.state,'repair_pending');assert.equal(a.relationships[b.id].tension,tension);
+ releaseKitchen(world,b,7200000);assert.equal(c.state,'resolved');assert.ok(a.relationships[b.id].tension<tension);
+});
+test('una propuesta romántica requiere reciprocidad',async()=>{
+ const {proposeRelationship,respondToProposal}=await import('../simulation/romance.js');
+ const world=createWorld({now:0}),[a,b]=world.people;a.profile.romanceEnabled=b.profile.romanceEnabled=true;
+ a.position={x:0,z:0};b.position={x:1,z:0};
+ a.relationships[b.id]={romanticInterest:80,familiarity:30};
+ b.relationships[a.id]={romanticInterest:0,familiarity:30};
+ const offer=proposeRelationship(world,a,b,0);assert.ok(offer);
+ assert.equal(respondToProposal(world,offer.id,b.id,true,1),false);
+ b.relationships[a.id].romanticInterest=80;
+ assert.equal(respondToProposal(world,offer.id,b.id,true,2),true);
+ assert.equal(respondToProposal(world,offer.id,b.id,true,3),false);
+});
