@@ -91,3 +91,10 @@ test('reservas activas exclusivas no se duplican',()=>{
   assert.equal(new Set(resources).size,resources.length);
  }
 });
+
+test('el ánimo responde a necesidades y tensión sin alterar rasgos',async()=>{
+ const {moodFrom}=await import('../simulation/mood.js');
+ const p={needs:{saciedad:80,energia:80,higiene:80,compania:80,diversion:80,bano:80},relationships:{b:{tension:0}},profile:{traits:{paciencia:.4}}};
+ const before=moodFrom(p);p.relationships.b.tension=60;const after=moodFrom(p);
+ assert.ok(after.score<before.score);assert.equal(p.profile.traits.paciencia,.4);
+});
