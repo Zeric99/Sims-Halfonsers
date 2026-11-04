@@ -8,6 +8,9 @@ export const SCHEMA_VERSION = 1;
 const MINUTE=60000, HOUR=60*MINUTE;
 const limit=(n,min=0,max=100)=>Math.max(min,Math.min(max,n));
 const definitions={
+ practicar:{label:'disfrutando de su afición',minutes:30,need:'diversion',gain:25,resource:null},
+ ver_tv:{label:'viendo la tele',minutes:40,need:'diversion',gain:25,resource:'sofa'},
+ pasear:{label:'dando un paseo',minutes:15,need:'diversion',gain:12,resource:null},
  dormir:{label:'durmiendo',minutes:480,need:'energia',gain:0,resource:'bed'},
  comer:{label:'comiendo',minutes:25,need:'saciedad',gain:60,resource:'kitchen'},
  asearse:{label:'aseándose',minutes:10,need:'higiene',gain:70,resource:'bathroom'},
@@ -26,7 +29,7 @@ export function createWorld({worldId='casa',seed=123456,now=Date.now(),timezone=
  return {worldId,schemaVersion:SCHEMA_VERSION,simulationVersion:ENGINE_VERSION,seed,randomState:seed>>>0,worldVersion:0,lastSimulatedAt:now,timezone,eventSequence:0,events:[],reservations:{},people:residents.map(({identity,profile},i)=>({id:identity.id,name:identity.name,homeId:identity.homeId,profile,needs:{saciedad:65+i%5*4,energia:65+i%4*5,higiene:75,compania:60,diversion:65},action:null,learned:{skills:{},preferences:{}},memories:[],relationships:{}}))};
 }
 function choose(world,p,at){
- const hour=localHour(at,world.timezone),sleepTime=inSleepWindow(hour,p.profile),n=p.needs,options=[];
+ const hour=localHour(at,'UTC'),sleepTime=inSleepWindow(hour,p.profile),n=p.needs,options=[];
  for(const [id,a] of Object.entries(definitions)){
   if(id==='charlar')continue; // Conversación compartida se incorpora con consentimiento en una fase posterior.
   const key=a.resource?(p.homeId+':'+a.resource+(a.resource==='bed'?':'+p.id:'')):null;
@@ -36,7 +39,13 @@ function choose(world,p,at){
   if(id==='comer'&&[8,9,13,14,20,21].includes(hour))score+=.18;
   if(id==='jugar'&&p.profile.interests.includes('ordenador'))score+=.16;
   if(id==='estudiar'&&p.profile.interests.includes('estudio'))score+=.2;
-  if(id==='leer')score+=.08;
+  if(id==='leer')score+=.02;
+  if(id==='practicar')score+=.14;
+  if(id==='ver_tv')score+=.10;
+  if(id==='pasear')score+=.09;
+  const others=world.people.filter(other=>other.id!==p.id&&other.action?.id===id).length;
+  if(id==='leer'&&others>=2)continue;
+  if(!['dormir','comer','charlar'].includes(id))score-=Math.max(0,others-1)*.10;
   if(p.lastAction===id)score-=.16;
   if(n.energia<20&&id!=='dormir')score-=.4;
   options.push({id,key,score:score+random(world)*.04});
@@ -51,8 +60,9 @@ function routeFor(p,to){const [,cz]=homes[p.homeId],from=p.position??roomPositio
 function start(world,p,at){
  const selected=choose(world,p,at);if(!selected)return;
  const def=definitions[selected.id],until=at+def.minutes*MINUTE;
- const route=routeFor(p,destination(p,selected.id));let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const travelMs=Math.min(Math.round(length*2000),Math.max(0,(until-at)-1000));
- p.action={id:selected.id,label:def.label,start:at,until,resource:selected.key,route,travelMs};
+ const route=routeFor(p,destination(p,selected.id));let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const travelMs=Math.min(Math.round(length*2000*48),Math.max(0,(until-at)-1000));
+ const hobby=p.profile.interests[0];const label=selected.id==='practicar'&&hobby?'disfrutando de '+hobby:def.label;
+ p.action={id:selected.id,label,start:at,until,resource:selected.key,route,travelMs};
  if(selected.key)world.reservations[selected.key]={personId:p.id,until};
  event(world,'action_started',p,at,{action:selected.id});
 }
@@ -65,9 +75,9 @@ function finish(world,p,at){
  if(action.route?.length)p.position=action.route[action.route.length-1];p.lastAction=action.id;p.action=null;event(world,'action_finished',p,at,{action:action.id});
 }
 // En ausencia de visitantes no se simulan hechos ni cambios sociales.
-export function resumeAfterAbsence(world,now,{idleThresholdMs=90000}={}){
- const last=world.lastObservedAt ?? world.lastSimulatedAt;
- if(now-last<=idleThresholdMs)return false;
+export function resumeAfterAbsence(world,now,{idleThresholdMs=90000,wallNow=now,force=false}={}){
+ const last=world.lastObservedAt ?? wallNow;
+ if(!force && wallNow-last<=idleThresholdMs)return false;
  world.reservations={};
  for(const p of world.people){
   p.action=null;
