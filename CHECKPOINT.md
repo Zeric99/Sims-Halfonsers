@@ -19,7 +19,7 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 - [x] Suspensión de sucesos sin visitas.
 - [ ] Trayectos reales por puertas y objetos; las rutas y gestos actuales son provisionales.
 - [ ] Comprobación integral con dos clientes y reinicios.
-- [ ] Convivencia completa: hay conversaciones y relaciones básicas; faltan conflictos, planes, reparación y romance integrado.
+- [ ] Convivencia completa: hay conversaciones, relaciones y un conflicto básico por turnos de cocina; faltan causas y planes más variados y validación integral del romance.
 
 ## Fase 1: motor doméstico
 - [ ] Separar identidad, perfil, estado y aprendizaje; validar esquema y migraciones.
@@ -28,7 +28,7 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 - [ ] Acciones con precondiciones, utilidad, duraciones, interrupciones y resultados únicos. El trayecto ya no consume el tiempo de actividad y dormir no recupera energía antes de llegar; el ocio puede interrumpirse por hambre, sueño o baño críticos cuando el recurso está disponible, liberando la reserva sin dar la recompensa; quedan precondiciones e interrupciones más completas.
 - [ ] Recursos con capacidad, reservas, vencimiento y alternativas. La reserva dura todo el trayecto y la actividad; quedan capacidades y alternativas más generales.
 - [ ] Habitaciones, puertas y rutas válidas sin atravesar muebles; estados de ejecución.
-- [ ] Cocina/comida, ocio, estudio, ordenador, descanso y limpieza. Implementadas acciones iniciales de comida, sueño, aseo, estudio y ocio; limpieza y preparación detallada pendientes.
+- [ ] Cocina/comida, ocio, estudio, ordenador, descanso y limpieza. Implementadas acciones iniciales de comida, sueño, aseo, estudio y ocio; la cocina acumula desorden tras las comidas y puede limpiarse con reserva. Preparación detallada y otras tareas pendientes.
 - [ ] Estado canónico transaccional, control de concurrencia y eventos idempotentes.
 - [ ] Dos clientes, reconexión, reinicio y escenarios de 7 días con semillas. Probados determinismo y siete días en el núcleo, además de sueño durante el trayecto, duración de reservas e interrupciones por necesidades urgentes; faltan pruebas integrales de concurrencia y reinicio.
 
@@ -40,7 +40,7 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 - [ ] Planes y compromisos domésticos con aceptación o rechazo.
 
 ## Fase 3: memoria y evolución
-- [ ] Recuerdos subjetivos basados en eventos, relevancia y límites.
+- [ ] Recuerdos subjetivos basados en eventos, relevancia y límites. Existen recuerdos básicos de conversaciones; falta ampliar su relevancia y uso.
 - [ ] Objetivos y reflexión; habilidades y preferencias con cambios acotados.
 - [ ] Módulo de cuestionario versionado, preguntas invertidas, omitidas y validación.
 - [ ] Conservar progreso y recuerdos al modificar perfiles.
