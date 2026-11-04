@@ -27,9 +27,15 @@ async function refresh(){
   }
   list.replaceChildren(fragment);
   const diary=document.createDocumentFragment();
-  const recent=world.events.filter(e=>['conversation_finished','kitchen_wait','repair_accepted','repair_declined','agreement_fulfilled'].includes(e.type)).slice(-5).reverse();
-  if(!recent.length){const row=document.createElement('p');row.textContent='Todavía no hay encuentros registrados.';diary.append(row)}
-  for(const event of recent){const row=document.createElement('p'),who=event.participants.map(id=>names.get(id)||'Un vecino').join(' y ');const messages={conversation_finished:who+' hablaron sobre '+event.topic+'.',kitchen_wait:who+' tuvieron que organizarse con la cocina.',repair_accepted:who+' hablaron y acordaron respetar el turno.',repair_declined:who+' necesitan más tiempo para resolver el desacuerdo.',agreement_fulfilled:who+' cumplieron el acuerdo de la cocina.'};row.textContent=messages[event.type];diary.append(row)}
+  const types=['conversation_started','conversation_finished','kitchen_wait','repair_accepted','repair_declined','agreement_fulfilled','romance_proposed','romance_accepted','romance_rejected','relationship_ended'];
+  const recent=world.events.filter(e=>types.includes(e.type)).slice(-80).reverse();
+  if(!recent.length){const row=document.createElement('p');row.textContent='Todavía no hay interacciones registradas.';diary.append(row)}
+  for(const event of recent){
+   const row=document.createElement('p'),who=(event.participants||[]).map(id=>names.get(id)||'Un vecino').join(' y ');
+   const messages={conversation_started:who+' empiezan a hablar sobre '+event.topic+'.',conversation_finished:who+' terminaron de hablar sobre '+event.topic+'.',kitchen_wait:who+' tuvieron que organizarse con la cocina.',repair_accepted:who+' acordaron respetar el turno de cocina.',repair_declined:who+' necesitan más tiempo para resolver el desacuerdo.',agreement_fulfilled:who+' cumplieron el acuerdo de la cocina.',romance_proposed:who+' están hablando de su relación.',romance_accepted:who+' han decidido empezar una relación.',romance_rejected:who+' han decidido no empezar una relación.',relationship_ended:who+' han terminado su relación.'};
+   const time=new Intl.DateTimeFormat('es-ES',{timeZone:'UTC',hour:'2-digit',minute:'2-digit'}).format(event.at);
+   row.textContent=time+' · '+messages[event.type];diary.append(row);
+  }
   events?.replaceChildren(diary);
  }catch{clock.textContent='No se ha podido conectar con el mundo compartido. Reintentando…'}
 }
