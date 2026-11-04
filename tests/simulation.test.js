@@ -140,3 +140,26 @@ test('una necesidad urgente espera si el recurso está ocupado',()=>{
  advanceWorld(world,start+60000);
  assert.equal(p.action.id,'leer');assert.equal(world.reservations[p.homeId+':bathroom'].personId,other.id);
 });
+
+test('comer ensucia la cocina y limpiar la deja recogida una sola vez',()=>{
+ const start=Date.UTC(2026,0,1,12),world=createWorld({now:start}),p=world.people[0],home=world.households[p.homeId];
+ p.action={id:'comer',label:'comiendo',start:start-1800000,until:start,resource:null,route:[],travelMs:0};
+ advanceWorld(world,start+60000);assert.equal(home.mess,12);
+ p.action={id:'limpiar',label:'limpiando',start:start-1800000,until:start+60000,resource:null,route:[],travelMs:0};home.mess=60;
+ advanceWorld(world,start+120000);assert.equal(home.mess,15);
+ assert.equal(world.events.filter(e=>e.type==='cleaning_finished'&&e.personId===p.id).length,1);
+ advanceWorld(world,start+180000);assert.equal(world.events.filter(e=>e.type==='cleaning_finished'&&e.personId===p.id).length,1);
+});
+test('una cocina muy desordenada motiva a limpiar y reserva su uso',()=>{
+ const start=Date.UTC(2026,0,1,12),world=createWorld({seed:12,now:start}),p=world.people[0];
+ world.households[p.homeId].mess=100;
+ for(const resident of world.people){resident.needs={saciedad:100,energia:100,higiene:100,compania:100,diversion:100,bano:100};if(resident!==p)resident.action={id:'leer',label:'leyendo',start,until:start+3600000,resource:null,route:[],travelMs:0}}
+ advanceWorld(world,start+60000);assert.equal(p.action.id,'limpiar');
+ assert.equal(world.reservations[p.homeId+':kitchen'].personId,p.id);
+});
+test('la migración añade estado de cocina sin borrar relaciones ni recuerdos',()=>{
+ const world=createWorld({now:0});world.simulationVersion=4;delete world.households;
+ world.people[0].relationships.otro={friendship:15};world.people[0].memories.push({kind:'test'});
+ advanceWorld(world,60000);assert.equal(world.households['piso-1'].mess,0);
+ assert.equal(world.people[0].relationships.otro.friendship,15);assert.equal(world.people[0].memories[0].kind,'test');
+});
