@@ -13,7 +13,7 @@ export default async function handler(req,res){
   for(let attempt=0;attempt<5;attempt++){
    const rows=await sql`SELECT version,state FROM sims_worlds WHERE id='casa'`;
    const row=rows[0], world=row.state, target=Date.now();
-   const result=advanceWorld(world,Math.max(target,world.lastSimulatedAt),{maxMinutes:720});
+   const result=advanceWorld(world,Math.max(target,world.lastSimulatedAt),{maxMinutes:2880});
    const updated=await sql`UPDATE sims_worlds SET version=version+1,state=${JSON.stringify(result.world)}::jsonb WHERE id='casa' AND version=${row.version} RETURNING version`;
    if(updated.length)return res.status(200).json({world:result.world,recovering:!result.complete,serverTime:target,mode:'recuperacion_al_consultar'});
   }
