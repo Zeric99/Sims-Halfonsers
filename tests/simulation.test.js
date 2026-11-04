@@ -98,3 +98,22 @@ test('el ánimo responde a necesidades y tensión sin alterar rasgos',async()=>{
  const before=moodFrom(p);p.relationships.b.tension=60;const after=moodFrom(p);
  assert.ok(after.score<before.score);assert.equal(p.profile.traits.paciencia,.4);
 });
+
+test('viajar a la cama no recupera energía y el sueño comienza al llegar',()=>{
+ const start=Date.UTC(2026,0,1,23),world=createWorld({now:start}),p=world.people[0];
+ p.needs.energia=10;p.action={id:'dormir',label:'durmiendo',start,until:start+480*60000,resource:null,route:[{x:0,z:0},{x:1,z:0}],travelMs:150000};
+ advanceWorld(world,start+60000);const enCamino=p.needs.energia;
+ assert.ok(enCamino<10);
+ advanceWorld(world,start+180000);
+ // Un minuto y medio despierto y medio minuto dormido.
+ assert.ok(Math.abs(p.needs.energia-(10-4*2.5/60+9*.5/60))<1e-8);
+ assert.ok(p.needs.energia>enCamino);
+});
+test('la reserva incluye el trayecto y el tiempo completo de la actividad',()=>{
+ const start=Date.UTC(2026,0,1,23),world=createWorld({now:start});
+ for(const p of world.people){p.position={x:0,z:16};p.needs.energia=0}
+ advanceWorld(world,start+60000);
+ const sleepers=world.people.filter(p=>p.action?.id==='dormir'&&p.action.travelMs>0);
+ assert.ok(sleepers.length>0);
+ for(const p of sleepers){const a=p.action;assert.equal(a.until-a.start-a.travelMs,480*60000);assert.equal(world.reservations[a.resource].until,a.until)}
+});
