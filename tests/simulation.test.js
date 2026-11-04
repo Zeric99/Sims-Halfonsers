@@ -49,7 +49,7 @@ test('un acuerdo se cumple solo al liberar el recurso',async()=>{
 });
 test('una propuesta romántica requiere reciprocidad',async()=>{
  const {proposeRelationship,respondToProposal}=await import('../simulation/romance.js');
- const world=createWorld({now:0}),[a,b]=world.people;a.profile.romanceEnabled=b.profile.romanceEnabled=true;
+ const world=createWorld({now:0}),[a,b]=world.people;a.profile.romanceEnabled=b.profile.romanceEnabled=true;a.profile.romancePartners=[b.id];b.profile.romancePartners=[a.id];
  a.position={x:0,z:0};b.position={x:1,z:0};
  a.relationships[b.id]={romanticInterest:80,familiarity:30};
  b.relationships[a.id]={romanticInterest:0,familiarity:30};
