@@ -25,12 +25,12 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 - [ ] Separar identidad, perfil, estado y aprendizaje; validar esquema y migraciones.
 - [ ] Reloj ficticio compartido: ciclo de 20 minutos de día y 10 de noche; falta ampliar las pruebas y el reloj inyectable.
 - [ ] Necesidades por tiempo, comida, sueño con histéresis, higiene, compañía y diversión; baño básico añadido como necesidad y recurso compartido. Faltan calibración y animaciones.
-- [ ] Acciones con precondiciones, utilidad, duraciones, interrupciones y resultados únicos. El trayecto ya no consume el tiempo de actividad y dormir no recupera energía antes de llegar; quedan precondiciones e interrupciones más completas.
+- [ ] Acciones con precondiciones, utilidad, duraciones, interrupciones y resultados únicos. El trayecto ya no consume el tiempo de actividad y dormir no recupera energía antes de llegar; el ocio puede interrumpirse por hambre, sueño o baño críticos cuando el recurso está disponible, liberando la reserva sin dar la recompensa; quedan precondiciones e interrupciones más completas.
 - [ ] Recursos con capacidad, reservas, vencimiento y alternativas. La reserva dura todo el trayecto y la actividad; quedan capacidades y alternativas más generales.
 - [ ] Habitaciones, puertas y rutas válidas sin atravesar muebles; estados de ejecución.
 - [ ] Cocina/comida, ocio, estudio, ordenador, descanso y limpieza. Implementadas acciones iniciales de comida, sueño, aseo, estudio y ocio; limpieza y preparación detallada pendientes.
 - [ ] Estado canónico transaccional, control de concurrencia y eventos idempotentes.
-- [ ] Dos clientes, reconexión, reinicio y escenarios de 7 días con semillas. Probados determinismo y siete días en el núcleo, además de sueño durante el trayecto y duración de reservas; faltan pruebas integrales de concurrencia y reinicio.
+- [ ] Dos clientes, reconexión, reinicio y escenarios de 7 días con semillas. Probados determinismo y siete días en el núcleo, además de sueño durante el trayecto, duración de reservas e interrupciones por necesidades urgentes; faltan pruebas integrales de concurrencia y reinicio.
 
 ## Fase 2: convivencia
 - [ ] Encuentros con consentimiento y conversación única por pareja. Base provisional con personas disponibles y próximas, bocadillos y diario; faltan invitaciones y consentimiento explícito más elaborado.
