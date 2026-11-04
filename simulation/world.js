@@ -6,6 +6,7 @@ import { recordKitchenWait, attemptKitchenRepair, releaseKitchen, coolConflicts 
 import { recordExperience, preferenceBonus } from './learning.js';
 import { findRoute } from './navigation.js';
 import { proposeRelationship, respondToProposal, endRelationship } from './romance.js';
+import { moodFrom } from './mood.js';
 
 export const ENGINE_VERSION = 4;
 export const SCHEMA_VERSION = 1;
@@ -155,6 +156,7 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
   for(const p of world.people){
    if(!p.action)start(world,p,at);
    p.needs=advanceNeeds(p.needs,step/HOUR,{sleeping:p.action?.id==='dormir',sociability:p.profile.traits.sociabilidad});
+   p.mood=moodFrom(p);
   }
   world.lastSimulatedAt=next;
  }
