@@ -62,6 +62,20 @@ function finish(world,p,at){
  if(['jugar','estudiar'].includes(action.id)){const old=p.learned.skills[action.id]??0;p.learned.skills[action.id]=Math.min(100,old+.25)}
  if(action.route?.length)p.position=action.route[action.route.length-1];p.lastAction=action.id;p.action=null;event(world,'action_finished',p,at,{action:action.id});
 }
+// En ausencia de visitantes no se simulan hechos ni cambios sociales.
+export function resumeAfterAbsence(world,now,{idleThresholdMs=90000}={}){
+ const last=world.lastObservedAt ?? world.lastSimulatedAt;
+ if(now-last<=idleThresholdMs)return false;
+ world.reservations={};
+ for(const p of world.people){
+  p.action=null;
+  p.position=roomPosition(p);
+  // Descanso y comidas se presuponen, sin generar recuerdos ni relaciones.
+  p.needs={...p.needs,saciedad:75,energia:75,higiene:75,compania:Math.max(35,p.needs.compania),diversion:Math.max(40,p.needs.diversion)};
+ }
+ world.lastSimulatedAt=now-1;
+ return true;
+}
 // Procesamiento acotado: el llamador persiste cada lote antes de continuar.
 export function advanceWorld(world,target,{maxMinutes=720}={}){
  if(world.simulationVersion<2){const initial=new Map(residents.map(r=>[r.identity.id,r.profile]));for(const p of world.people){if(p.profile.provenance==='provisional'&&initial.has(p.id))p.profile={...p.profile,traits:initial.get(p.id).traits}}world.simulationVersion=2}
