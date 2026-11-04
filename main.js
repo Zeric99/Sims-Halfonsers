@@ -56,4 +56,12 @@ function positionAt(action,fallback,now){
  return route[route.length-1];
 }
 function resize(){const w=root.clientWidth,h=root.clientHeight;renderer.setSize(w,h);const aspect=w/h;camera.left=-18*aspect;camera.right=18*aspect;camera.top=18;camera.bottom=-18;camera.updateProjectionMatrix()}window.addEventListener('resize',resize);resize();
-function animate(t){requestAnimationFrame(animate);if(snapshot){const byName=new Map(snapshot.people.map(p=>[p.name,p]));const now=Date.now()+clockOffset;for(const p of people){const state=byName.get(p.name);if(!state)continue;const where=positionAt(state.action,state.position??p.initial,now);p.g.position.set(where.x,where.walking?Math.abs(Math.sin(t*.008+p.phase))*.055:0,where.z);if(where.angle!==undefined)p.g.rotation.y=where.angle}}controls.update();renderer.render(scene,camera)}requestAnimationFrame(animate);
+function animate(t){requestAnimationFrame(animate);if(snapshot){const byName=new Map(snapshot.people.map(p=>[p.name,p]));const now=Date.now()+clockOffset;for(const p of people){const state=byName.get(p.name);if(!state)continue;const where=positionAt(state.action,state.position??p.initial,now);
+ // Pequeños desplazamientos compartidos durante actividades despiertas.
+ const action=state.action,awake=action&&action.id!=='dormir';
+ const arrived=action&&now>=action.start+(action.travelMs||0);
+ const cycle=awake&&arrived?((now-action.start+p.phase*1000)%16000)/16000:0;
+ const excursion=cycle<.25?cycle*4:cycle<.5?2-cycle*4:0;
+ const sway=awake&&arrived?excursion*.5:0;
+ p.g.position.set(where.x+sway,where.walking?Math.abs(Math.sin(now*.008+p.phase))*.055:awake?Math.abs(Math.sin(now*.005+p.phase))*.025:0,where.z);
+ if(where.angle!==undefined)p.g.rotation.y=where.angle;else if(sway>0)p.g.rotation.y=cycle<.25?Math.PI/2:-Math.PI/2}}controls.update();renderer.render(scene,camera)}requestAnimationFrame(animate);
