@@ -4,12 +4,14 @@ import { advanceNeeds, urgency } from './needs.js';
 import { openConversation, finishConversation } from './social.js';
 import { recordKitchenWait, attemptKitchenRepair, releaseKitchen, coolConflicts } from './conflicts.js';
 import { recordExperience, preferenceBonus } from './learning.js';
+import { findRoute } from './navigation.js';
 
 export const ENGINE_VERSION = 4;
 export const SCHEMA_VERSION = 1;
 const MINUTE=60000, HOUR=60*MINUTE;
 const limit=(n,min=0,max=100)=>Math.max(min,Math.min(max,n));
 const definitions={
+ esperar:{label:'esperando un camino libre',minutes:3,need:'energia',gain:0,resource:null},
  practicar:{label:'disfrutando de su afición',minutes:30,need:'diversion',gain:25,resource:null},
  ver_tv:{label:'viendo la tele',minutes:40,need:'diversion',gain:25,resource:'sofa'},
  pasear:{label:'dando un paseo',minutes:15,need:'diversion',gain:12,resource:null},
@@ -34,7 +36,7 @@ export function createWorld({worldId='casa',seed=123456,now=Date.now(),timezone=
 function choose(world,p,at){
  const hour=localHour(at,'UTC'),sleepTime=inSleepWindow(hour,p.profile),n=p.needs,options=[];
  for(const [id,a] of Object.entries(definitions)){
-  if(id==='charlar')continue; // Conversación compartida se incorpora con consentimiento en una fase posterior.
+  if(id==='charlar'||id==='esperar')continue; // Conversación compartida se incorpora con consentimiento en una fase posterior.
   const key=a.resource?(p.homeId+':'+a.resource+(['bed','computer'].includes(a.resource)?':'+p.id:'')):null;
   if(key&&world.reservations[key]&&world.reservations[key].until>at)continue;
   let score=urgency(n[a.need])*.65;
@@ -59,15 +61,17 @@ function choose(world,p,at){
 }
 const homes={'piso-1':[-10,-7],'piso-2':[10,-7],'piso-3':[-10,7],'piso-4':[10,7]};
 function roomPosition(p){const [cx,cz]=homes[p.homeId];const slot=residents.filter(r=>r.identity.homeId===p.homeId).findIndex(r=>r.identity.id===p.id);return {x:cx-7+Math.max(0,slot)*3.5+2.5,z:cz-6+3.7}}
-function destination(p,id){const [cx,cz]=homes[p.homeId];if(['dormir','jugar','estudiar'].includes(id))return roomPosition(p);if(['asearse','usar_bano'].includes(id))return {x:cx+.2,z:cz+3.6};if(id==='comer')return {x:cx-1,z:cz+1};return {x:cx+1,z:cz+1}}
-function routeFor(p,to){const [,cz]=homes[p.homeId],from=p.position??roomPosition(p),hall=cz-.5;return [from,{x:from.x,z:hall},{x:to.x,z:hall},to]}
+function destination(p,id){const [cx,cz]=homes[p.homeId];if(id==='pasear')return {x:0,z:16};if(['dormir','jugar','estudiar'].includes(id))return roomPosition(p);if(['asearse','usar_bano'].includes(id))return {x:cx+.2,z:cz+3.6};if(id==='comer')return {x:cx-1,z:cz+1};return {x:cx+1,z:cz+1}}
+function routeFor(p,to){return findRoute(p.position??roomPosition(p),to)}
 function acceptsInvitation(world,p,other){const tension=p.relationships?.[other.id]?.tension??0;const socialNeed=(100-p.needs.compania)/100;const chance=Math.max(.1,Math.min(.9,.25+.35*p.profile.traits.sociabilidad+.3*socialNeed-tension/200));return random(world)<chance}
 function start(world,p,at){
  const kitchen=world.reservations[p.homeId+':kitchen'];
  if(p.needs.saciedad<50&&kitchen&&kitchen.until>at&&kitchen.personId!==p.id){const occupant=world.people.find(q=>q.id===kitchen.personId);if(occupant)recordKitchenWait(world,p,occupant,at)}
  const selected=choose(world,p,at);if(!selected)return;
  const def=definitions[selected.id],until=at+def.minutes*MINUTE;
- const route=routeFor(p,destination(p,selected.id));let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const travelMs=Math.min(Math.round(length*2000*48),Math.max(0,(until-at)-1000));
+ const route=routeFor(p,destination(p,selected.id));
+ if(!route.length){const pos=p.position??roomPosition(p);p.action={id:'esperar',label:definitions.esperar.label,start:at,until:at+3*MINUTE,resource:null,route:[pos],travelMs:0};event(world,'route_blocked',p,at,{action:selected.id});return}
+ let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const travelMs=Math.min(Math.round(length*2000*48),Math.max(0,(until-at)-1000));
  const hobby=p.profile.interests[0];const label=selected.id==='practicar'&&hobby?'disfrutando de '+hobby:def.label;
  p.action={id:selected.id,label,start:at,until,resource:selected.key,route,travelMs};
  if(selected.key)world.reservations[selected.key]={personId:p.id,until};
