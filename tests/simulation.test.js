@@ -118,3 +118,25 @@ test('la reserva incluye el trayecto y el tiempo completo de la actividad',()=>{
  assert.ok(sleepers.length>0);
  for(const p of sleepers){const a=p.action;assert.equal(a.until-a.start-a.travelMs,480*60000);assert.equal(world.reservations[a.resource].until,a.until)}
 });
+
+test('una necesidad urgente interrumpe ocio y libera el recurso sin completar la actividad',()=>{
+ const start=Date.UTC(2026,0,1,12),world=createWorld({now:start}),p=world.people[0];
+ p.position={x:-8,z:-6};p.needs.bano=5;p.needs.diversion=30;
+ const key=p.homeId+':computer:'+p.id;
+ p.action={id:'jugar',label:'jugando',start,until:start+60*60000,resource:key,route:[p.position],travelMs:0};
+ world.reservations[key]={personId:p.id,until:p.action.until};
+ advanceWorld(world,start+60000);
+ assert.equal(p.action.id,'usar_bano');assert.equal(world.reservations[key],undefined);
+ assert.equal(world.reservations[p.homeId+':bathroom'].personId,p.id);
+ assert.ok(p.needs.diversion<30);
+ assert.ok(world.events.some(e=>e.type==='activity_interrupted'&&e.personId===p.id&&e.reason==='necesidad urgente'));
+ assert.ok(!world.events.some(e=>e.type==='action_finished'&&e.personId===p.id&&e.action==='jugar'));
+});
+test('una necesidad urgente espera si el recurso está ocupado',()=>{
+ const start=Date.UTC(2026,0,1,12),world=createWorld({now:start}),[p,other]=world.people;
+ p.position={x:-8,z:-6};p.needs.bano=5;
+ p.action={id:'leer',label:'leyendo',start,until:start+60*60000,resource:null,route:[p.position],travelMs:0};
+ world.reservations[p.homeId+':bathroom']={personId:other.id,until:start+30*60000};
+ advanceWorld(world,start+60000);
+ assert.equal(p.action.id,'leer');assert.equal(world.reservations[p.homeId+':bathroom'].personId,other.id);
+});
