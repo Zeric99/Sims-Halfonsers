@@ -1,0 +1,9 @@
+{
+  "name": "sims-halfonsers",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "dependencies": {
+    "@neondatabase/serverless": "1.0.2"
+  }
+}
