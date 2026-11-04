@@ -39,5 +39,5 @@ export const residents = [
   identity:{id:'mii-'+(i+1),name,homeId:i<4?'piso-1':i<8?'piso-2':i<11?'piso-3':'piso-4'},
   // Valores ficticios deterministas y diferenciados; el cuestionario podrá sustituirlos.
   profile:profileFromAnswers({}, {provenance:'provisional', interests, wakeHour:[7,8,9,10][i%4],
-    sleepHour:[22,23,0,1][i%4], traits:Object.fromEntries(TRAITS.map((t,j)=>[t, .35+((i*7+j*3)%7)*.05]))})
+    sleepHour:[22,23,0,1][i%4], traits:Object.fromEntries(TRAITS.map((t,j)=>[t, .35+((i*5+j*3)%7)*.05]))})
 }));
