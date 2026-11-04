@@ -82,6 +82,7 @@ export function resumeAfterAbsence(world,now,{idleThresholdMs=90000,wallNow=now,
  const last=world.lastObservedAt ?? wallNow;
  if(!force && wallNow-last<=idleThresholdMs)return false;
  world.reservations={};
+ for(const c of Object.values(world.conversations??{}))if(!c.finished){c.finished=true;c.cancelled=true}
  for(const p of world.people){
   p.action=null;
   p.position=roomPosition(p);
@@ -114,7 +115,7 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
     &&q.action.route?.length&&aPos
     &&Math.hypot(q.action.route.at(-1).x-aPos.x,q.action.route.at(-1).z-aPos.z)<3);
    if(!b)continue;
-   for(const p of [a,b]){const old=p.action;if(old.resource&&world.reservations[old.resource]?.personId===p.id)delete world.reservations[old.resource];p.position=old.route?.at(-1)??p.position;p.action=null;event(world,'activity_paused',p,at,{action:old.id,reason:'invitación aceptada'})}
+   for(const p of [a,b]){const old=p.action;if(old.resource&&world.reservations[old.resource]?.personId===p.id)delete world.reservations[old.resource];p.position=old.route?.at(-1)??p.position;p.action=null;event(world,'activity_interrupted',p,at,{action:old.id,reason:'invitación aceptada'})}
    if(openConversation(world,a,b,at)){a.lastSocialAt=at;b.lastSocialAt=at}
   }
   // Dos personas libres y próximas pueden aceptar una charla; una sola acción compartida.
