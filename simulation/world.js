@@ -3,6 +3,7 @@ import { residents } from './profiles.js';
 import { advanceNeeds, urgency } from './needs.js';
 import { openConversation, finishConversation } from './social.js';
 import { recordKitchenWait, attemptKitchenRepair, releaseKitchen, coolConflicts } from './conflicts.js';
+import { recordExperience, preferenceBonus } from './learning.js';
 
 export const ENGINE_VERSION = 4;
 export const SCHEMA_VERSION = 1;
@@ -48,6 +49,7 @@ function choose(world,p,at){
   const others=world.people.filter(other=>other.id!==p.id&&other.action?.id===id).length;
   if(id==='leer'&&others>=2)continue;
   if(!['dormir','comer','charlar'].includes(id))score-=Math.max(0,others-1)*.10;
+  score+=preferenceBonus(p,id);
   if(p.lastAction===id)score-=.16;
   if(n.energia<20&&id!=='dormir')score-=.4;
   options.push({id,key,score:score+random(world)*.04});
@@ -76,7 +78,11 @@ function finish(world,p,at){
  if(action.conversationId&&finishConversation(world,action.conversationId,at))attemptKitchenRepair(world,world.conversations[action.conversationId],at,random(world));
  if(def.gain)p.needs[def.need]=limit(p.needs[def.need]+def.gain);
  if(action.resource&&world.reservations[action.resource]?.personId===p.id){delete world.reservations[action.resource];if(action.resource.endsWith(':kitchen'))releaseKitchen(world,p,at)}
- if(['jugar','estudiar'].includes(action.id)){const old=p.learned.skills[action.id]??0;p.learned.skills[action.id]=Math.min(100,old+.25)}
+ const skillByAction={jugar:'juegos',estudiar:'estudio',comer:'cocina',practicar:'aficiones'};
+ if(skillByAction[action.id]){
+  const likes=(action.id==='jugar'&&p.profile.interests.includes('ordenador'))||(action.id==='estudiar'&&p.profile.interests.includes('estudio'))||action.id==='practicar';
+  recordExperience(p,{activity:action.id,skill:skillByAction[action.id],minutes:Math.max(0,(at-action.start-(action.travelMs||0))/MINUTE),reward:likes?.5:0});
+ }
  if(action.route?.length)p.position=action.route[action.route.length-1];p.lastAction=action.id;p.action=null;event(world,'action_finished',p,at,{action:action.id});
 }
 // En ausencia de visitantes no se simulan hechos ni cambios sociales.
