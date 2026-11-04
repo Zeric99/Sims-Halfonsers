@@ -2,6 +2,7 @@
 import { residents } from './profiles.js';
 import { advanceNeeds, urgency } from './needs.js';
 import { openConversation, finishConversation } from './social.js';
+import { recordKitchenWait, attemptKitchenRepair, releaseKitchen, coolConflicts } from './conflicts.js';
 
 export const ENGINE_VERSION = 3;
 export const SCHEMA_VERSION = 1;
@@ -58,6 +59,8 @@ function roomPosition(p){const [cx,cz]=homes[p.homeId];const slot=residents.filt
 function destination(p,id){const [cx,cz]=homes[p.homeId];if(['dormir','jugar','estudiar'].includes(id))return roomPosition(p);if(['comer','asearse'].includes(id))return {x:cx-1,z:cz+1};return {x:cx+1,z:cz+1}}
 function routeFor(p,to){const [,cz]=homes[p.homeId],from=p.position??roomPosition(p),hall=cz-.5;return [from,{x:from.x,z:hall},{x:to.x,z:hall},to]}
 function start(world,p,at){
+ const kitchen=world.reservations[p.homeId+':kitchen'];
+ if(p.needs.saciedad<50&&kitchen&&kitchen.until>at&&kitchen.personId!==p.id){const occupant=world.people.find(q=>q.id===kitchen.personId);if(occupant)recordKitchenWait(world,p,occupant,at)}
  const selected=choose(world,p,at);if(!selected)return;
  const def=definitions[selected.id],until=at+def.minutes*MINUTE;
  const route=routeFor(p,destination(p,selected.id));let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const travelMs=Math.min(Math.round(length*2000*48),Math.max(0,(until-at)-1000));
@@ -68,9 +71,9 @@ function start(world,p,at){
 }
 function finish(world,p,at){
  const action=p.action,def=definitions[action.id];
- if(action.conversationId)finishConversation(world,action.conversationId,at);
+ if(action.conversationId&&finishConversation(world,action.conversationId,at))attemptKitchenRepair(world,world.conversations[action.conversationId],at,random(world));
  if(def.gain)p.needs[def.need]=limit(p.needs[def.need]+def.gain);
- if(action.resource&&world.reservations[action.resource]?.personId===p.id)delete world.reservations[action.resource];
+ if(action.resource&&world.reservations[action.resource]?.personId===p.id){delete world.reservations[action.resource];if(action.resource.endsWith(':kitchen'))releaseKitchen(world,p,at)}
  if(['jugar','estudiar'].includes(action.id)){const old=p.learned.skills[action.id]??0;p.learned.skills[action.id]=Math.min(100,old+.25)}
  if(action.route?.length)p.position=action.route[action.route.length-1];p.lastAction=action.id;p.action=null;event(world,'action_finished',p,at,{action:action.id});
 }
@@ -97,6 +100,7 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
  const end=Math.min(target,world.lastSimulatedAt+maxMinutes*MINUTE);
  while(world.lastSimulatedAt<end){
   const at=world.lastSimulatedAt,step=Math.min(MINUTE,end-at),next=at+step;
+  coolConflicts(world,at);
   for(const p of world.people)if(p.action&&(p.action.until<=at||(p.action.id==='dormir'&&p.needs.energia>=60&&!inSleepWindow(localHour(at,'UTC'),p.profile))))finish(world,p,at);
   // Dos personas libres y próximas pueden aceptar una charla; una sola acción compartida.
   const available=world.people.filter(p=>!p.action);
