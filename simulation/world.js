@@ -70,10 +70,10 @@ function start(world,p,at){
  const kitchen=world.reservations[p.homeId+':kitchen'];
  if(p.needs.saciedad<50&&kitchen&&kitchen.until>at&&kitchen.personId!==p.id){const occupant=world.people.find(q=>q.id===kitchen.personId);if(occupant)recordKitchenWait(world,p,occupant,at)}
  const selected=choose(world,p,at);if(!selected)return;
- const def=definitions[selected.id],until=at+def.minutes*MINUTE;
+ const def=definitions[selected.id];
  const route=routeFor(p,destination(p,selected.id));
  if(!route.length){const pos=p.position??roomPosition(p);p.action={id:'esperar',label:definitions.esperar.label,start:at,until:at+3*MINUTE,resource:null,route:[pos],travelMs:0};event(world,'route_blocked',p,at,{action:selected.id});return}
- let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const travelMs=Math.min(Math.round(length*2000*48),Math.max(0,(until-at)-1000));
+ let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const travelMs=Math.round(length*2000*48),until=at+travelMs+def.minutes*MINUTE;
  const hobby=p.profile.interests[0];const label=selected.id==='practicar'&&hobby?'disfrutando de '+hobby:def.label;
  p.action={id:selected.id,label,start:at,until,resource:selected.key,route,travelMs};
  if(selected.key)world.reservations[selected.key]={personId:p.id,until};
@@ -129,7 +129,7 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
  while(world.lastSimulatedAt<end){
   const at=world.lastSimulatedAt,step=Math.min(MINUTE,end-at),next=at+step;
   coolConflicts(world,at);
-  for(const p of world.people)if(p.action&&(p.action.until<=at||(p.action.id==='dormir'&&p.needs.energia>=60&&!inSleepWindow(localHour(at,'UTC'),p.profile))))finish(world,p,at);
+  for(const p of world.people)if(p.action&&(p.action.until<=at||(p.action.id==='dormir'&&at>=p.action.start+(p.action.travelMs||0)&&p.needs.energia>=60&&!inSleepWindow(localHour(at,'UTC'),p.profile))))finish(world,p,at);
   // Una invitación puede interrumpir ocio tranquilo si ambos están disponibles,
   // cerca y han pasado al menos tres horas de juego desde su último encuentro.
   const canInvite=p=>p.action&&['leer','pasear','ver_tv','descansar'].includes(p.action.id)
@@ -155,7 +155,13 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
   }
   for(const p of world.people){
    if(!p.action)start(world,p,at);
-   p.needs=advanceNeeds(p.needs,step/HOUR,{sleeping:p.action?.id==='dormir',sociability:p.profile.traits.sociabilidad});
+   // El desplazamiento y el sueño tienen efectos distintos incluso si el
+   // personaje llega a la cama a mitad de un intervalo de simulación.
+   const sleepStart=p.action?.id==='dormir'?p.action.start+(p.action.travelMs||0):Infinity;
+   const awakeMs=Math.max(0,Math.min(step,sleepStart-at));
+   const asleepMs=step-awakeMs;
+   if(awakeMs)p.needs=advanceNeeds(p.needs,awakeMs/HOUR,{sleeping:false,sociability:p.profile.traits.sociabilidad});
+   if(asleepMs)p.needs=advanceNeeds(p.needs,asleepMs/HOUR,{sleeping:true,sociability:p.profile.traits.sociabilidad});
    p.mood=moodFrom(p);
   }
   world.lastSimulatedAt=next;
