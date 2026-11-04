@@ -23,7 +23,7 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 ## Fase 1: motor doméstico
 - [ ] Separar identidad, perfil, estado y aprendizaje; validar esquema y migraciones.
 - [ ] Reloj ficticio compartido: ciclo de 20 minutos de día y 10 de noche; falta ampliar las pruebas y el reloj inyectable.
-- [ ] Necesidades por tiempo, comida, sueño con histéresis, higiene, compañía y diversión; documentar o añadir baño.
+- [ ] Necesidades por tiempo, comida, sueño con histéresis, higiene, compañía y diversión; baño básico añadido como necesidad y recurso compartido. Faltan calibración y animaciones.
 - [ ] Acciones con precondiciones, utilidad, duraciones, interrupciones y resultados únicos.
 - [ ] Recursos con capacidad, reservas, vencimiento y alternativas.
 - [ ] Habitaciones, puertas y rutas válidas sin atravesar muebles; estados de ejecución.
@@ -34,7 +34,7 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 ## Fase 2: convivencia
 - [ ] Encuentros con consentimiento y conversación única por pareja. Base provisional con personas disponibles y próximas, bocadillos y diario; faltan invitaciones y consentimiento explícito más elaborado.
 - [ ] Amistad, confianza, tensión y familiaridad dirigidas; efectos acotados y rendimientos decrecientes. Amistad, confianza y familiaridad básicas implementadas; faltan conflictos y comportamiento más rico.
-- [ ] Conflictos motivados por sucesos, reparación y consecuencias de acuerdos.
+- [ ] Conflictos motivados por sucesos, reparación y consecuencias de acuerdos. Hay una primera causa por espera de cocina y reparación condicionada a liberar el recurso; faltan otras causas y pruebas integrales.
 - [ ] Romance ficticio solo si está configurado; interés unilateral y reciprocidad, rechazo y ruptura gradual. Módulo de propuestas probado aisladamente; no está integrado ni activo.
 - [ ] Planes y compromisos domésticos con aceptación o rechazo.
 
