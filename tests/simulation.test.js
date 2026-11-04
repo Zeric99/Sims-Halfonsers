@@ -163,3 +163,28 @@ test('la migración añade estado de cocina sin borrar relaciones ni recuerdos',
  advanceWorld(world,60000);assert.equal(world.households['piso-1'].mess,0);
  assert.equal(world.people[0].relationships.otro.friendship,15);assert.equal(world.people[0].memories[0].kind,'test');
 });
+
+test('los perfiles se aíslan entre mundos y no cambian los valores iniciales',()=>{
+ const a=createWorld({now:0}),b=createWorld({now:0});
+ const initial=b.people[0].profile.traits.orden;
+ a.people[0].profile.traits.orden=initial===1?0:1;
+ a.people[0].profile.interests.push('prueba');
+ assert.equal(b.people[0].profile.traits.orden,initial);
+ assert.ok(!b.people[0].profile.interests.includes('prueba'));
+ const c=createWorld({now:0});assert.equal(c.people[0].profile.traits.orden,initial);
+});
+test('reanudar desde estado serializado reproduce el mismo mundo',()=>{
+ const start=Date.UTC(2026,0,1,7),a=createWorld({seed:827,now:start});
+ advanceWorld(a,start+6*hour);const b=JSON.parse(JSON.stringify(a));
+ advanceWorld(a,start+12*hour);advanceWorld(b,start+12*hour);assert.deepEqual(a,b);
+});
+test('siete días simulados mantienen necesidades y recursos coherentes',()=>{
+ const start=Date.UTC(2026,0,1,7),world=createWorld({seed:73184,now:start}),kinds=new Set();
+ for(let h=1;h<=168;h++){
+  advanceWorld(world,start+h*hour);
+  for(const e of world.events)if(e.type==='action_finished')kinds.add(e.action);
+  for(const p of world.people)for(const n of Object.values(p.needs))assert.ok(Number.isFinite(n)&&n>=0&&n<=100);
+  const keys=world.people.map(p=>p.action?.resource).filter(Boolean);assert.equal(new Set(keys).size,keys.length);
+ }
+ for(const kind of ['comer','dormir','asearse','jugar','limpiar'])assert.ok(kinds.has(kind));
+});
