@@ -23,6 +23,7 @@ for(const [cx,cz] of [[-10,-7],[10,-7],[-10,7],[10,7]]){
  obstacle(x0+4.9,cz+4.7,1.1,.9);
  obstacle(cx+.2,cz+4.8,.7,.7);obstacle(cx+1.2,cz+5,.65,.5);
  obstacle(cx+3.5,cz+3,2.3,1.3);
+ obstacle(cx+4.2,cz+.25,2.55,.95);obstacle(cx+6.2,cz+1.1,.6,.6);
  for(const dx of [-1.6,1.6])for(const dz of [-.6,.6])obstacle(cx+3.5+dx,cz+3+dz,.5,.5);
 }
 for(const [x,z] of [[-14,17],[14,17],[-17,14],[17,14]])obstacle(x,z,.45,.45);
