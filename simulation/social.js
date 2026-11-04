@@ -36,6 +36,8 @@ export function finishConversation(world,id,at){
   r.friendship=clamp(r.friendship+(c.outcome==='shared_interest'?2:1)*(repeated?.5:1),-100,100);
   r.trust=clamp(r.trust+(repeated?.1:.4),0,100);
   r.familiarity=clamp(r.familiarity+1,0,100);r.lastEncounter=at;
+  const compatible=person.profile.romanceEnabled&&other.profile.romanceEnabled&&person.profile.romancePartners?.includes(other.id)&&other.profile.romancePartners?.includes(person.id);
+  if(compatible&&r.familiarity>=10&&r.friendship>=10&&r.tension<30)r.romanticInterest=clamp(r.romanticInterest+(repeated?.05:.2),0,100);
   person.memories ??=[];person.memories.push({eventId:id,kind:'conversation',with:other.id,at,importance:1});
   if(person.memories.length>50)person.memories.shift();
  }
