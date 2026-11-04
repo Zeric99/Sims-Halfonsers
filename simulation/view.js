@@ -18,7 +18,7 @@ async function refresh(){
    const card=document.createElement('details');card.dataset.personId=person.id;card.open=open.has(person.id);card.style.margin='7px 0';
    const title=document.createElement('summary'),name=document.createElement('strong');name.textContent=person.name+': ';
    title.append(name,document.createTextNode(person.action?.label||'descansando'));card.append(title);
-   const home=document.createElement('p');home.textContent='Hogar: '+person.homeId.replace('piso-','piso ');card.append(home);
+   const home=document.createElement('p');home.textContent='Hogar: '+person.homeId.replace('piso-','piso ')+' · Ánimo: '+(person.mood?.label??'sin datos');card.append(home);
    const needs=document.createElement('p');needs.textContent=Object.entries(person.needs).map(([k,v])=>(labels[k]||k)+' '+Math.round(v)).join(' · ');card.append(needs);
    const relations=Object.entries(person.relationships||{}).sort((a,b)=>b[1].friendship-a[1].friendship).slice(0,3);
    const friends=document.createElement('p');friends.textContent=relations.length?'Relaciones: '+relations.map(([id,r])=>(names.get(id)||'Vecino')+' (amistad '+Math.round(r.friendship)+', tensión '+Math.round(r.tension)+')').join(' · '):'Todavía no tiene relaciones registradas.';card.append(friends);
