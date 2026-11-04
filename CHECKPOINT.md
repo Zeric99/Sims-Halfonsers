@@ -5,12 +5,13 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 ## Decisiones posteriores que prevalecen
 - Solo vida doméstica; sin empleos exteriores, centro comercial ni mudanzas.
 - Simulación compartida en Vercel y Neon. Los visitantes observan.
-- Sin visitantes durante más de 90 segundos no se generan sucesos ni cambios sociales. Al regresar se presupone vida cotidiana, se conservan relaciones y recuerdos y se inicia en habitaciones según la hora de Madrid.
+- Sin visitantes durante más de 90 segundos no se generan sucesos ni cambios sociales. Al regresar se presupone vida cotidiana, se conservan relaciones y recuerdos y se inicia en habitaciones.
+- Reloj ficticio compartido: 20 minutos reales de día (07:00–23:00 del juego) y 10 de noche. La hora sigue el ciclo al volver, pero no se inventan sucesos sociales durante la ausencia.
 - No usar almacenamiento local como estado canónico. El código se actualiza directamente en GitHub.
 
 ## Estado comprobado
 - [x] Escena Three.js existente, 14 personajes y nombres.
-- [x] Perfiles ficticios provisionales, gustos, necesidades y reloj configurado.
+- [x] Perfiles ficticios provisionales, gustos, necesidades y reloj ficticio compartido.
 - [x] Estado compartido en Neon, comparación por versión y recuperación básica.
 - [x] Web en Vercel conectada al repositorio original.
 - [x] Panel de actividades e interpolación básica compartida.
@@ -21,7 +22,7 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 
 ## Fase 1: motor doméstico
 - [ ] Separar identidad, perfil, estado y aprendizaje; validar esquema y migraciones.
-- [ ] Reloj real y de pruebas inyectable, tiempo UTC y horarios Europe/Madrid con DST.
+- [ ] Reloj ficticio compartido: ciclo de 20 minutos de día y 10 de noche; falta ampliar las pruebas y el reloj inyectable.
 - [ ] Necesidades por tiempo, comida, sueño con histéresis, higiene, compañía y diversión; documentar o añadir baño.
 - [ ] Acciones con precondiciones, utilidad, duraciones, interrupciones y resultados únicos.
 - [ ] Recursos con capacidad, reservas, vencimiento y alternativas.
@@ -31,8 +32,8 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 - [ ] Dos clientes, reconexión, reinicio y escenarios de 7 días con semillas.
 
 ## Fase 2: convivencia
-- [ ] Encuentros con consentimiento y conversación única por pareja.
-- [ ] Amistad, confianza, tensión y familiaridad dirigidas; efectos acotados y rendimientos decrecientes.
+- [ ] Encuentros con consentimiento y conversación única por pareja. Base provisional de conversaciones entre vecinos disponibles y próximos, sin diálogo visible.
+- [ ] Amistad, confianza, tensión y familiaridad dirigidas; efectos acotados y rendimientos decrecientes. Amistad, confianza y familiaridad básicas implementadas; faltan conflictos y comportamiento más rico.
 - [ ] Conflictos motivados por sucesos, reparación y consecuencias de acuerdos.
 - [ ] Romance ficticio solo si está configurado; interés unilateral y reciprocidad, rechazo y ruptura gradual.
 - [ ] Planes y compromisos domésticos con aceptación o rechazo.
