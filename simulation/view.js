@@ -19,6 +19,8 @@ async function refresh(){
    const title=document.createElement('summary'),name=document.createElement('strong');name.textContent=person.name+': ';
    title.append(name,document.createTextNode(person.action?.label||'descansando'));card.append(title);
    const home=document.createElement('p');home.textContent='Hogar: '+person.homeId.replace('piso-','piso ')+' · Ánimo: '+(person.mood?.label??'sin datos');card.append(home);
+   const mess=world.households?.[person.homeId]?.mess;
+   if(Number.isFinite(mess)){const homeState=document.createElement('p');homeState.textContent='Cocina: '+(mess<20?'recogida':mess<50?'algo desordenada':'necesita limpieza');card.append(homeState)}
    const needs=document.createElement('p');needs.textContent=Object.entries(person.needs).map(([k,v])=>(labels[k]||k)+' '+Math.round(v)).join(' · ');card.append(needs);
    const relations=Object.entries(person.relationships||{}).sort((a,b)=>b[1].friendship-a[1].friendship).slice(0,3);
    const friends=document.createElement('p');friends.textContent=relations.length?'Relaciones: '+relations.map(([id,r])=>(names.get(id)||'Vecino')+' (amistad '+Math.round(r.friendship)+', tensión '+Math.round(r.tension)+')').join(' · '):'Todavía no tiene relaciones registradas.';card.append(friends);
@@ -27,12 +29,12 @@ async function refresh(){
   }
   list.replaceChildren(fragment);
   const diary=document.createDocumentFragment();
-  const types=['conversation_started','conversation_finished','kitchen_wait','repair_accepted','repair_declined','agreement_fulfilled','romance_proposed','romance_accepted','romance_rejected','relationship_ended'];
+  const types=['conversation_started','conversation_finished','kitchen_wait','repair_accepted','repair_declined','agreement_fulfilled','romance_proposed','romance_accepted','romance_rejected','relationship_ended','cleaning_finished'];
   const recent=world.events.filter(e=>types.includes(e.type)).slice(-80).reverse();
   if(!recent.length){const row=document.createElement('p');row.textContent='Todavía no hay interacciones registradas.';diary.append(row)}
   for(const event of recent){
    const row=document.createElement('p'),who=(event.participants||[]).map(id=>names.get(id)||'Un vecino').join(' y ');
-   const messages={conversation_started:who+' empiezan a hablar sobre '+event.topic+'.',conversation_finished:who+' terminaron de hablar sobre '+event.topic+'.',kitchen_wait:who+' tuvieron que organizarse con la cocina.',repair_accepted:who+' acordaron respetar el turno de cocina.',repair_declined:who+' necesitan más tiempo para resolver el desacuerdo.',agreement_fulfilled:who+' cumplieron el acuerdo de la cocina.',romance_proposed:who+' están hablando de su relación.',romance_accepted:who+' han decidido empezar una relación.',romance_rejected:who+' han decidido no empezar una relación.',relationship_ended:who+' han terminado su relación.'};
+   const messages={conversation_started:who+' empiezan a hablar sobre '+event.topic+'.',conversation_finished:who+' terminaron de hablar sobre '+event.topic+'.',kitchen_wait:who+' tuvieron que organizarse con la cocina.',repair_accepted:who+' acordaron respetar el turno de cocina.',repair_declined:who+' necesitan más tiempo para resolver el desacuerdo.',agreement_fulfilled:who+' cumplieron el acuerdo de la cocina.',romance_proposed:who+' están hablando de su relación.',romance_accepted:who+' han decidido empezar una relación.',romance_rejected:who+' han decidido no empezar una relación.',relationship_ended:who+' han terminado su relación.',cleaning_finished:(names.get(event.personId)||'Un vecino')+' ha limpiado la cocina del '+(event.homeId||'piso').replace('piso-','piso ')+'.'};
    const time=new Intl.DateTimeFormat('es-ES',{timeZone:'UTC',hour:'2-digit',minute:'2-digit'}).format(event.at);
    row.textContent=time+' · '+messages[event.type];diary.append(row);
   }
