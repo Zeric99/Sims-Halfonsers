@@ -29,6 +29,8 @@ if(hobby==='study'){for(let k=0;k<3;k++)box(x+2.86,.73+k*.1,z+1.16,.4,.09,.27,ma
 if(hobby==='ball'){let b=new THREE.Mesh(new THREE.SphereGeometry(.2,12,10),mat(0xf6f2dc));b.position.set(x+2.8,.25,z+3.1);scene.add(b)}
 label(names[i],x+1.75,2.1,z+4.35,'#304334',.58)}
 box(cx-3.5,.1,cz+3,6.9,.06,5.8,materials.tile);for(let i=0;i<3;i++)box(x0+.7+i*1.3,.55,cz+4.7,1.2,1,.8,materials.white);box(cx-2.5,.9,cz+4.7,.8,.2,.6,materials.dark);
+// Punto de baño provisional compartido por los habitantes del piso.
+box(cx+.2,.3,cz+4.8,.7,.55,.7,materials.white);box(cx+.2,.61,cz+5.07,.7,.35,.2,materials.white);box(cx+1.2,.55,cz+5,.65,1,.5,mat(0xddebf0));
 // Electrodomésticos, encimera y vajilla en cada vivienda.
 box(x0+4.9,1.0,cz+4.7,1.1,1.9,.9,mat(0xe8ebe3));box(x0+.8,1.1,cz+5.0,.45,.45,.08,mat(0x607c76));
 for(let k=0;k<3;k++)box(x0+2.5+k*.3,1.09,cz+4.7,.16,.06,.16,mat(0x465953));
