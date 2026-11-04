@@ -15,9 +15,9 @@ async function refresh(){
   for(const person of world.people){const row=document.createElement('p');row.style.margin='5px 0';const name=document.createElement('strong');name.textContent=person.name+': ';row.append(name,document.createTextNode(person.action?.label||'descansando'));fragment.append(row)}
   list.replaceChildren(fragment);
   const diary=document.createDocumentFragment(),names=new Map(world.people.map(p=>[p.id,p.name]));
-  const recent=world.events.filter(e=>e.type==='conversation_finished').slice(-4).reverse();
+  const recent=world.events.filter(e=>['conversation_finished','kitchen_wait','repair_accepted','repair_declined','agreement_fulfilled'].includes(e.type)).slice(-5).reverse();
   if(!recent.length){const row=document.createElement('p');row.textContent='Todavía no hay encuentros registrados.';diary.append(row)}
-  for(const event of recent){const row=document.createElement('p');row.textContent=event.participants.map(id=>names.get(id)||'Un vecino').join(' y ')+' hablaron sobre '+event.topic+'.';diary.append(row)}
+  for(const event of recent){const row=document.createElement('p'),who=event.participants.map(id=>names.get(id)||'Un vecino').join(' y ');const messages={conversation_finished:who+' hablaron sobre '+event.topic+'.',kitchen_wait:who+' tuvieron que organizarse con la cocina.',repair_accepted:who+' hablaron y acordaron respetar el turno.',repair_declined:who+' necesitan más tiempo para resolver el desacuerdo.',agreement_fulfilled:who+' cumplieron el acuerdo de la cocina.'};row.textContent=messages[event.type];diary.append(row)}
   events?.replaceChildren(diary);
  }catch{clock.textContent='No se ha podido conectar con el mundo compartido. Reintentando…'}
 }
