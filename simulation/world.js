@@ -66,10 +66,10 @@ function roomPosition(p){const [cx,cz]=homes[p.homeId];const slot=residents.filt
 function destination(p,id){const [cx,cz]=homes[p.homeId];if(id==='pasear')return {x:0,z:16};if(['dormir','jugar','estudiar'].includes(id))return roomPosition(p);if(['asearse','usar_bano'].includes(id))return {x:cx+.2,z:cz+3.6};if(id==='comer')return {x:cx-1,z:cz+1};return {x:cx+1,z:cz+1}}
 function routeFor(p,to){return findRoute(p.position??roomPosition(p),to)}
 function acceptsInvitation(world,p,other){const tension=p.relationships?.[other.id]?.tension??0;const socialNeed=(100-p.needs.compania)/100;const chance=Math.max(.1,Math.min(.9,.25+.35*p.profile.traits.sociabilidad+.3*socialNeed-tension/200));return random(world)<chance}
-function start(world,p,at){
+function start(world,p,at,forced=null){
  const kitchen=world.reservations[p.homeId+':kitchen'];
  if(p.needs.saciedad<50&&kitchen&&kitchen.until>at&&kitchen.personId!==p.id){const occupant=world.people.find(q=>q.id===kitchen.personId);if(occupant)recordKitchenWait(world,p,occupant,at)}
- const selected=choose(world,p,at);if(!selected)return;
+ const selected=forced??choose(world,p,at);if(!selected)return;
  const def=definitions[selected.id];
  const route=routeFor(p,destination(p,selected.id));
  if(!route.length){const pos=p.position??roomPosition(p);p.action={id:'esperar',label:definitions.esperar.label,start:at,until:at+3*MINUTE,resource:null,route:[pos],travelMs:0};event(world,'route_blocked',p,at,{action:selected.id});return}
@@ -103,6 +103,32 @@ function finish(world,p,at){
  }
  if(action.route?.length)p.position=action.route[action.route.length-1];p.lastAction=action.id;p.action=null;event(world,'action_finished',p,at,{action:action.id});
 }
+// Una interrupción conserva el punto alcanzado, sin completar ni premiar la acción.
+function positionDuring(action,fallback,at){
+ const route=action.route;
+ if(!route?.length)return fallback;
+ if(route.length===1||!action.travelMs||at>=action.start+action.travelMs)return route.at(-1);
+ const lengths=route.slice(1).map((p,i)=>Math.hypot(p.x-route[i].x,p.z-route[i].z));
+ const total=lengths.reduce((sum,n)=>sum+n,0);
+ let left=total*Math.max(0,Math.min(1,(at-action.start)/action.travelMs));
+ for(let i=0;i<lengths.length;i++){const d=lengths[i];if(d&&left<=d){const a=route[i],b=route[i+1],q=left/d;return {x:a.x+(b.x-a.x)*q,z:a.z+(b.z-a.z)*q}}left-=d}
+ return route.at(-1);
+}
+function addressUrgentNeed(world,p,at){
+ const old=p.action;
+ if(!old||!['practicar','ver_tv','pasear','jugar','estudiar','descansar','leer','esperar'].includes(old.id))return false;
+ const critical=p.needs.bano<12?'usar_bano':p.needs.saciedad<10?'comer':p.needs.energia<8?'dormir':null;
+ if(!critical)return false;
+ const resource=definitions[critical].resource;
+ const key=p.homeId+':'+resource+(resource==='bed'?':'+p.id:'');
+ if(world.reservations[key]?.until>at&&world.reservations[key].personId!==p.id)return false;
+ const position=positionDuring(old,p.position??roomPosition(p),at);
+ if(!findRoute(position,destination(p,critical)).length)return false;
+ if(old.resource&&world.reservations[old.resource]?.personId===p.id)delete world.reservations[old.resource];
+ p.position=position;p.action=null;p.lastAction=old.id;
+ event(world,'activity_interrupted',p,at,{action:old.id,reason:'necesidad urgente',nextAction:critical});
+ start(world,p,at,{id:critical,key});return true;
+}
 // En ausencia de visitantes no se simulan hechos ni cambios sociales.
 export function resumeAfterAbsence(world,now,{idleThresholdMs=90000,wallNow=now,force=false}={}){
  const last=world.lastObservedAt ?? wallNow;
@@ -130,6 +156,7 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
   const at=world.lastSimulatedAt,step=Math.min(MINUTE,end-at),next=at+step;
   coolConflicts(world,at);
   for(const p of world.people)if(p.action&&(p.action.until<=at||(p.action.id==='dormir'&&at>=p.action.start+(p.action.travelMs||0)&&p.needs.energia>=60&&!inSleepWindow(localHour(at,'UTC'),p.profile))))finish(world,p,at);
+  for(const p of world.people)addressUrgentNeed(world,p,at);
   // Una invitación puede interrumpir ocio tranquilo si ambos están disponibles,
   // cerca y han pasado al menos tres horas de juego desde su último encuentro.
   const canInvite=p=>p.action&&['leer','pasear','ver_tv','descansar'].includes(p.action.id)
