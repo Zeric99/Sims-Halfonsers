@@ -5,7 +5,9 @@ const root=document.querySelector('#world');
 const scene=new THREE.Scene();scene.background=new THREE.Color(0xb8d99c);
 const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1,2.5));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;root.prepend(renderer.domElement);document.querySelector('#loading').remove();
 const camera=new THREE.OrthographicCamera(-22,22,16,-16,.1,200);camera.position.set(30,38,40);camera.lookAt(0,0,0);
-const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,0,1);controls.enablePan=false;controls.minZoom=.7;controls.maxZoom=2.4;controls.maxPolarAngle=Math.PI/2.4;controls.update();
+const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,0,1);controls.enablePan=true;controls.screenSpacePanning=true;controls.zoomToCursor=true;controls.minZoom=.7;controls.maxZoom=6;
+// Fijar la inclinación mantiene la vista isométrica aunque se gire el edificio.
+const fixedPolar=Math.atan2(Math.hypot(30,39),38);controls.minPolarAngle=fixedPolar;controls.maxPolarAngle=fixedPolar;controls.update();
 const ambient=new THREE.HemisphereLight(0xffffff,0x6c8061,2);scene.add(ambient);const sun=new THREE.DirectionalLight(0xfff3d8,2);sun.position.set(-15,35,20);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-27,right:27,top:27,bottom:-27,near:1,far:90});sun.shadow.bias=-0.0003;sun.shadow.normalBias=.035;scene.add(sun);
 const mat=c=>new THREE.MeshStandardMaterial({color:c,roughness:.85});const materials={grass:mat(0x98c77a),wood:mat(0xe1bd8d),tile:mat(0xdbe6d6),wall:mat(0xbba587),white:mat(0xf8f3e8),blanket:mat(0x7bad9f),brown:mat(0x997054),dark:mat(0x425e50),garden:mat(0x7ab85f)};
 const obstacles=[];
