@@ -2,14 +2,28 @@
 export const PROFILE_VERSION = 1;
 export const TRAITS = ['sociabilidad','amabilidad','paciencia','orden','curiosidad','constancia','privacidad','sensibilidadRuido','iniciativaSocial'];
 const clamp = n => Math.min(1, Math.max(0, n));
-const questions = {
-  prefiereSoledad: [{trait:'privacidad', weight:1}, {trait:'sociabilidad', weight:1, inverted:true}],
-  proponePlanes: [{trait:'iniciativaSocial', weight:1}],
-  ruidoConcentracion: [{trait:'sensibilidadRuido', weight:1}]
-};
+export const QUESTION_SCHEMA = Object.freeze({
+ prefiereSoledad:[{trait:'privacidad',weight:1},{trait:'sociabilidad',weight:1,inverted:true}],
+ disfrutaReuniones:[{trait:'sociabilidad',weight:1},{trait:'privacidad',weight:.5,inverted:true}],
+ proponePlanes:[{trait:'iniciativaSocial',weight:1}],
+ esperaInvitacion:[{trait:'iniciativaSocial',weight:1,inverted:true}],
+ ayudaOtros:[{trait:'amabilidad',weight:1}],
+ respondeConCortesia:[{trait:'amabilidad',weight:1},{trait:'paciencia',weight:.5}],
+ pierdePaciencia:[{trait:'paciencia',weight:1,inverted:true}],
+ toleraDemoras:[{trait:'paciencia',weight:1}],
+ ordenHabitacion:[{trait:'orden',weight:1}],
+ dejaCosasFuera:[{trait:'orden',weight:1,inverted:true}],
+ pruebaCosasNuevas:[{trait:'curiosidad',weight:1}],
+ prefiereLoConocido:[{trait:'curiosidad',weight:1,inverted:true}],
+ terminaTareas:[{trait:'constancia',weight:1}],
+ cambiaDeTarea:[{trait:'constancia',weight:1,inverted:true}],
+ necesitaEspacio:[{trait:'privacidad',weight:1}],
+ ruidoConcentracion:[{trait:'sensibilidadRuido',weight:1}],
+ ruidoNoMolesta:[{trait:'sensibilidadRuido',weight:1,inverted:true}]
+});
 export function profileFromAnswers(answers = {}, previous = {}) {
   const totals = Object.fromEntries(TRAITS.map(t => [t, {sum:0, weight:0}]));
-  for (const [id, mappings] of Object.entries(questions)) {
+  for (const [id, mappings] of Object.entries(QUESTION_SCHEMA)) {
     const value = answers[id];
     if (value == null) continue;
     if (!Number.isInteger(value) || value < 1 || value > 5) throw new RangeError('Respuesta fuera de escala: ' + id);
