@@ -74,3 +74,20 @@ test('el cuestionario invierte valores y conserva respuestas omitidas',async()=>
  assert.equal(p.traits.privacidad,1);assert.equal(p.traits.sociabilidad,0);assert.equal(p.traits.orden,.7);
  assert.throws(()=>profileFromAnswers({prefiereSoledad:6}),RangeError);
 });
+
+test('las catorce habitaciones conectan con el jardín',async()=>{
+ const {findRoute}=await import('../simulation/navigation.js');
+ for(const cx of [-10,10])for(const cz of [-7,7])for(let i=0;i<(cz<0?4:3);i++){
+  const room={x:cx-7+i*3.5+2.5,z:cz-6+3.7};
+  const route=findRoute(room,{x:0,z:16});assert.ok(route.length>0);
+  for(let j=1;j<route.length;j++)assert.ok(route[j].x===route[j-1].x||route[j].z===route[j-1].z);
+ }
+});
+test('reservas activas exclusivas no se duplican',()=>{
+ const start=Date.UTC(2026,0,1,7),world=createWorld({seed:17,now:start});
+ for(let minute=1;minute<=180;minute++){
+  advanceWorld(world,start+minute*60000);
+  const resources=world.people.map(p=>p.action?.resource).filter(Boolean);
+  assert.equal(new Set(resources).size,resources.length);
+ }
+});
