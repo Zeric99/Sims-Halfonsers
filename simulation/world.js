@@ -102,6 +102,21 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
   const at=world.lastSimulatedAt,step=Math.min(MINUTE,end-at),next=at+step;
   coolConflicts(world,at);
   for(const p of world.people)if(p.action&&(p.action.until<=at||(p.action.id==='dormir'&&p.needs.energia>=60&&!inSleepWindow(localHour(at,'UTC'),p.profile))))finish(world,p,at);
+  // Una invitación puede interrumpir ocio tranquilo si ambos están disponibles,
+  // cerca y han pasado al menos tres horas de juego desde su último encuentro.
+  const canInvite=p=>p.action&&['leer','pasear','ver_tv','descansar'].includes(p.action.id)
+    &&at-p.action.start>=10*MINUTE&&at>=p.action.start+(p.action.travelMs||0)
+    &&p.action.until-at>=5*MINUTE&&at-(p.lastSocialAt??-Infinity)>=3*HOUR;
+  for(const a of world.people){
+   if(!canInvite(a)||a.needs.compania>75||random(world)>.025)continue;
+   const aPos=a.action.route?.at(-1)??a.position;
+   const b=world.people.find(q=>q.id!==a.id&&q.homeId===a.homeId&&canInvite(q)
+    &&q.action.route?.length&&aPos
+    &&Math.hypot(q.action.route.at(-1).x-aPos.x,q.action.route.at(-1).z-aPos.z)<3);
+   if(!b)continue;
+   for(const p of [a,b]){const old=p.action;if(old.resource&&world.reservations[old.resource]?.personId===p.id)delete world.reservations[old.resource];p.position=old.route?.at(-1)??p.position;p.action=null;event(world,'activity_paused',p,at,{action:old.id,reason:'invitación aceptada'})}
+   if(openConversation(world,a,b,at)){a.lastSocialAt=at;b.lastSocialAt=at}
+  }
   // Dos personas libres y próximas pueden aceptar una charla; una sola acción compartida.
   const available=world.people.filter(p=>!p.action);
   for(let i=0;i<available.length;i++){
