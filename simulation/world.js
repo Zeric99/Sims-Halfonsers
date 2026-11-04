@@ -59,6 +59,7 @@ const homes={'piso-1':[-10,-7],'piso-2':[10,-7],'piso-3':[-10,7],'piso-4':[10,7]
 function roomPosition(p){const [cx,cz]=homes[p.homeId];const slot=residents.filter(r=>r.identity.homeId===p.homeId).findIndex(r=>r.identity.id===p.id);return {x:cx-7+Math.max(0,slot)*3.5+2.5,z:cz-6+3.7}}
 function destination(p,id){const [cx,cz]=homes[p.homeId];if(['dormir','jugar','estudiar'].includes(id))return roomPosition(p);if(['asearse','usar_bano'].includes(id))return {x:cx+.2,z:cz+3.6};if(id==='comer')return {x:cx-1,z:cz+1};return {x:cx+1,z:cz+1}}
 function routeFor(p,to){const [,cz]=homes[p.homeId],from=p.position??roomPosition(p),hall=cz-.5;return [from,{x:from.x,z:hall},{x:to.x,z:hall},to]}
+function acceptsInvitation(world,p,other){const tension=p.relationships?.[other.id]?.tension??0;const socialNeed=(100-p.needs.compania)/100;const chance=Math.max(.1,Math.min(.9,.25+.35*p.profile.traits.sociabilidad+.3*socialNeed-tension/200));return random(world)<chance}
 function start(world,p,at){
  const kitchen=world.reservations[p.homeId+':kitchen'];
  if(p.needs.saciedad<50&&kitchen&&kitchen.until>at&&kitchen.personId!==p.id){const occupant=world.people.find(q=>q.id===kitchen.personId);if(occupant)recordKitchenWait(world,p,occupant,at)}
@@ -117,6 +118,7 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
     &&q.action.route?.length&&aPos
     &&Math.hypot(q.action.route.at(-1).x-aPos.x,q.action.route.at(-1).z-aPos.z)<3);
    if(!b)continue;
+   if(!acceptsInvitation(world,a,b)||!acceptsInvitation(world,b,a)){a.lastSocialAt=at;continue}
    for(const p of [a,b]){const old=p.action;if(old.resource&&world.reservations[old.resource]?.personId===p.id)delete world.reservations[old.resource];p.position=old.route?.at(-1)??p.position;p.action=null;event(world,'activity_interrupted',p,at,{action:old.id,reason:'invitación aceptada'})}
    if(openConversation(world,a,b,at)){a.lastSocialAt=at;b.lastSocialAt=at}
   }
@@ -125,7 +127,7 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
   for(let i=0;i<available.length;i++){
    const a=available[i];if(a.action||random(world)>.35)continue;
    const b=available.slice(i+1).find(q=>!q.action&&q.homeId===a.homeId&&q.position&&a.position&&Math.hypot(q.position.x-a.position.x,q.position.z-a.position.z)<3);
-   if(b)openConversation(world,a,b,at);
+   if(b&&acceptsInvitation(world,a,b)&&acceptsInvitation(world,b,a))openConversation(world,a,b,at);
   }
   for(const p of world.people){
    if(!p.action)start(world,p,at);
