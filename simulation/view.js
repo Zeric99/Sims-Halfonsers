@@ -1,4 +1,4 @@
-const clock=document.querySelector('#world-clock'), list=document.querySelector('#world-activities');
+const clock=document.querySelector('#world-clock'), list=document.querySelector('#world-activities'), events=document.querySelector('#world-events');
 let lastVersion=-1;
 async function refresh(){
  try{
@@ -14,6 +14,11 @@ async function refresh(){
   const fragment=document.createDocumentFragment();
   for(const person of world.people){const row=document.createElement('p');row.style.margin='5px 0';const name=document.createElement('strong');name.textContent=person.name+': ';row.append(name,document.createTextNode(person.action?.label||'descansando'));fragment.append(row)}
   list.replaceChildren(fragment);
+  const diary=document.createDocumentFragment(),names=new Map(world.people.map(p=>[p.id,p.name]));
+  const recent=world.events.filter(e=>e.type==='conversation_finished').slice(-4).reverse();
+  if(!recent.length){const row=document.createElement('p');row.textContent='Todavía no hay encuentros registrados.';diary.append(row)}
+  for(const event of recent){const row=document.createElement('p');row.textContent=event.participants.map(id=>names.get(id)||'Un vecino').join(' y ')+' hablaron sobre '+event.topic+'.';diary.append(row)}
+  events?.replaceChildren(diary);
  }catch{clock.textContent='No se ha podido conectar con el mundo compartido. Reintentando…'}
 }
 refresh();setInterval(refresh,5000);
