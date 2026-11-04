@@ -21,6 +21,13 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 - [ ] Comprobación integral con dos clientes y reinicios.
 - [ ] Convivencia completa: hay conversaciones, relaciones y un conflicto básico por turnos de cocina; faltan causas y planes más variados y validación integral del romance.
 
+## Preparación para la fase 1
+- [x] Repositorio original conectado a Vercel y estado compartido en Neon.
+- [x] Perfiles independientes por mundo, para que una simulación no modifique los valores iniciales de otra.
+- [x] Pruebas ejecutables con `npm test` y flujo de GitHub Actions para cambios en main y pull requests.
+- [x] Escenarios de siete días y reanudación de un estado serializado; estas pruebas no sustituyen la comprobación con dos clientes reales.
+- La fase 1 ya se ha comenzado; los puntos siguientes son trabajo pendiente, no requisitos previos bloqueantes.
+
 ## Fase 1: motor doméstico
 - [ ] Separar identidad, perfil, estado y aprendizaje; validar esquema y migraciones.
 - [ ] Reloj ficticio compartido: ciclo de 20 minutos de día y 10 de noche; falta ampliar las pruebas y el reloj inyectable.
@@ -30,7 +37,7 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 - [ ] Habitaciones, puertas y rutas válidas sin atravesar muebles; estados de ejecución.
 - [ ] Cocina/comida, ocio, estudio, ordenador, descanso y limpieza. Implementadas acciones iniciales de comida, sueño, aseo, estudio y ocio; la cocina acumula desorden tras las comidas y puede limpiarse con reserva. Preparación detallada y otras tareas pendientes.
 - [ ] Estado canónico transaccional, control de concurrencia y eventos idempotentes.
-- [ ] Dos clientes, reconexión, reinicio y escenarios de 7 días con semillas. Probados determinismo y siete días en el núcleo, además de sueño durante el trayecto, duración de reservas e interrupciones por necesidades urgentes; faltan pruebas integrales de concurrencia y reinicio.
+- [ ] Dos clientes, reconexión, reinicio y escenarios de 7 días con semillas. Probados determinismo, siete días y reanudación desde un estado serializado en el núcleo, además de sueño durante el trayecto, duración de reservas e interrupciones por necesidades urgentes; faltan pruebas integrales con Neon, concurrencia y reconexión.
 
 ## Fase 2: convivencia
 - [ ] Encuentros con consentimiento y conversación única por pareja. Base provisional con personas disponibles y próximas, bocadillos y diario; faltan invitaciones y consentimiento explícito más elaborado.
