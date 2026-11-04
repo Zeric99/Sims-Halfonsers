@@ -4,6 +4,7 @@ function log(world,type,at,extra){world.events.push({id:world.worldId+':'+(++wor
 const pairKey=(a,b)=>[a.id,b.id].sort().join(':');
 export function proposeRelationship(world,a,b,at){
  if(a.id===b.id||!a.profile.romanceEnabled||!b.profile.romanceEnabled)return null;
+ if(!a.profile.romancePartners?.includes(b.id)||!b.profile.romancePartners?.includes(a.id))return null;
  if(a.homeId!==b.homeId||!a.position||!b.position||Math.hypot(a.position.x-b.position.x,a.position.z-b.position.z)>3)return null;
  const ar=a.relationships?.[b.id],br=b.relationships?.[a.id];
  if(!ar||!br||ar.romanticInterest<60||br.familiarity<20)return null;
@@ -24,4 +25,12 @@ export function respondToProposal(world,id,responderId,accept,at){
  if(accept)world.romance.couples[offer.key]={participants:[a.id,b.id],status:'together',since:at};
  else world.romance.cooldowns[offer.key]=at+DAY;
  log(world,accept?'romance_accepted':'romance_rejected',at,{offerId:id,participants:[a.id,b.id]});return true;
+}
+
+export function endRelationship(world,a,b,at,reason){
+ const pair=world.romance?.couples?.[pairKey(a,b)];
+ if(!pair||pair.status!=='together'||typeof reason!=='string'||!reason.trim())return false;
+ pair.status='separated';pair.endedAt=at;pair.reason=reason;
+ world.romance.cooldowns[pairKey(a,b)]=at+DAY;
+ log(world,'relationship_ended',at,{participants:[a.id,b.id],reason});return true;
 }
