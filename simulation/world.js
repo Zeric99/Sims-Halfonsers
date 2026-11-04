@@ -32,7 +32,7 @@ function choose(world,p,at){
  const hour=localHour(at,'UTC'),sleepTime=inSleepWindow(hour,p.profile),n=p.needs,options=[];
  for(const [id,a] of Object.entries(definitions)){
   if(id==='charlar')continue; // Conversación compartida se incorpora con consentimiento en una fase posterior.
-  const key=a.resource?(p.homeId+':'+a.resource+(a.resource==='bed'?':'+p.id:'')):null;
+  const key=a.resource?(p.homeId+':'+a.resource+(['bed','computer'].includes(a.resource)?':'+p.id:'')):null;
   if(key&&world.reservations[key]&&world.reservations[key].until>at)continue;
   let score=urgency(n[a.need])*.65;
   if(id==='dormir')score+=sleepTime?.55:-.15;
