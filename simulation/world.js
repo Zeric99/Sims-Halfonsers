@@ -5,6 +5,7 @@ import { openConversation, finishConversation } from './social.js';
 import { recordKitchenWait, attemptKitchenRepair, releaseKitchen, coolConflicts } from './conflicts.js';
 import { recordExperience, preferenceBonus } from './learning.js';
 import { findRoute } from './navigation.js';
+import { proposeRelationship, respondToProposal, endRelationship } from './romance.js';
 
 export const ENGINE_VERSION = 4;
 export const SCHEMA_VERSION = 1;
@@ -79,7 +80,19 @@ function start(world,p,at){
 }
 function finish(world,p,at){
  const action=p.action,def=definitions[action.id];
- if(action.conversationId&&finishConversation(world,action.conversationId,at))attemptKitchenRepair(world,world.conversations[action.conversationId],at,random(world));
+ if(action.conversationId&&finishConversation(world,action.conversationId,at)){
+  const conversation=world.conversations[action.conversationId];
+  attemptKitchenRepair(world,conversation,at,random(world));
+  const [a,b]=conversation.participants.map(id=>world.people.find(q=>q.id===id));
+  if(a&&b&&a.profile.romanceEnabled&&b.profile.romanceEnabled){
+   const key=[a.id,b.id].sort().join(':'),pair=world.romance?.couples?.[key],tension=Math.max(a.relationships?.[b.id]?.tension??0,b.relationships?.[a.id]?.tension??0);
+   const repeated=Object.values(world.conflicts??{}).some(c=>c.participants.includes(a.id)&&c.participants.includes(b.id)&&c.severity>=3);
+   if(pair?.status==='together'&&tension>=75&&repeated&&random(world)<.15)endRelationship(world,a,b,at,'conflictos de convivencia acumulados');
+   else if(!pair||pair.status!=='together'){
+    if(random(world)<.15){const offer=proposeRelationship(world,a,b,at);if(offer){const r=b.relationships?.[a.id];const chance=Math.max(.05,Math.min(.9,((r?.romanticInterest??0)+(r?.trust??0))/200));respondToProposal(world,offer.id,b.id,random(world)<chance,at)}}
+   }
+  }
+ }
  if(def.gain)p.needs[def.need]=limit(p.needs[def.need]+def.gain);
  if(action.resource&&world.reservations[action.resource]?.personId===p.id){delete world.reservations[action.resource];if(action.resource.endsWith(':kitchen'))releaseKitchen(world,p,at)}
  const skillByAction={jugar:'juegos',estudiar:'estudio',comer:'cocina',practicar:'aficiones'};
