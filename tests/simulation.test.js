@@ -107,7 +107,8 @@ test('viajar a la cama no recupera energía y el sueño comienza al llegar',()=>
  advanceWorld(world,start+180000);
  // Un minuto y medio despierto y medio minuto dormido.
  assert.ok(Math.abs(p.needs.energia-(10-4*2.5/60+9*.5/60))<1e-8);
- assert.ok(p.needs.energia>enCamino);
+ const afterArrival=p.needs.energia;advanceWorld(world,start+240000);
+ assert.ok(p.needs.energia>afterArrival);
 });
 test('la reserva incluye el trayecto y el tiempo completo de la actividad',()=>{
  const start=Date.UTC(2026,0,1,23),world=createWorld({now:start});
