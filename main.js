@@ -22,6 +22,13 @@ function bed(x,z){const frame=mat(0x73513b),linen=mat(0xe9eddf),quilt=mat(0x78a9
  soft(x,.64,z-.48,.77,.16,.34,materials.white,.1);soft(x,.77,z-.91,1.22,.9,.14,frame,.08);
  box(x,.72,z+.46,.98,.02,.025,mat(0xaed1c0));box(x,.72,z+.1,.98,.02,.025,mat(0xaed1c0));}
 function diningChair(x,z,dir){const m=mat(0x765943),pad=mat(0x7eaaa1);soft(x,.48,z,.55,.13,.52,pad,.06);for(const dx of [-.2,.2])for(const dz of [-.18,.18])cylinder(x+dx,.24,z+dz,.035,.035,.46,m);soft(x,.82,z+dir*.23,.55,.65,.1,m,.04);soft(x,.83,z+dir*.18,.42,.46,.06,pad,.04)}
+function oval(x,y,z,w,h,d,m){const o=new THREE.Mesh(new THREE.SphereGeometry(1,24,16),m);o.position.set(x,y,z);o.scale.set(w/2,h/2,d/2);o.castShadow=true;o.receiveShadow=true;scene.add(o);return o}
+function sofa(x,z){const fabric=mat(0x638f87), cushion=mat(0x86b0a3), legs=mat(0x624b3c);
+ soft(x,.36,z,2.55,.55,.95,fabric,.15);soft(x,.84,z-.36,2.55,.85,.25,fabric,.12);
+ for(const dx of [-.77,0,.77]){soft(x+dx,.68,z+.05,.72,.22,.72,cushion,.1);soft(x+dx,1.02,z-.21,.7,.48,.22,cushion,.1)}
+ for(const dx of [-1.16,1.16]){soft(x+dx,.72,z,.25,.65,.95,fabric,.1);for(const dz of [-.32,.32])cylinder(x+dx,.12,z+dz,.07,.08,.22,legs)}
+}
+function plantPot(x,z){const pot=mat(0xb67558),leaves=mat(0x488b57);cylinder(x,.23,z,.3,.21,.4,pot);for(let i=0;i<7;i++){const a=i*Math.PI*2/7;const leaf=oval(x+Math.cos(a)*.2,.66+(i%2)*.14,z+Math.sin(a)*.2,.25,.65,.2,leaves);leaf.rotation.z=Math.cos(a)*.5;leaf.rotation.x=Math.sin(a)*.5}}
 function flat(cx,cz,n,title,names){const x0=cx-7,z0=cz-6;box(cx,.03,cz,14,.15,12,materials.wood); // cutaway low walls
 box(cx,.45,z0,14,.8,.12,materials.wall);for(const side of [-1,1]){const wx=cx+side*7;if((cx<0&&side===1)||(cx>0&&side===-1)){box(wx,.45,cz-4,.12,.8,4,materials.wall);box(wx,.45,cz+3,.12,.8,6,materials.wall)}else box(wx,.45,cz,.12,.8,12,materials.wall)}
 const rooms=[[x0,z0],[x0+3.5,z0],[x0+7,z0],[x0+10.5,z0]];
@@ -42,12 +49,14 @@ label(names[i],x+1.75,2.1,z+4.35,'#304334',.58)}
 box(cx-3.5,.1,cz+3,6.9,.06,5.8,materials.tile);for(let i=0;i<3;i++)box(x0+.7+i*1.3,.55,cz+4.7,1.2,1,.8,materials.white);box(cx-2.5,.9,cz+4.7,.8,.2,.6,materials.dark);
 for(let j=0;j<3;j++){box(x0+.7+j*1.3,.73,cz+4.26,1.05,.04,.04,mat(0xc8cfc2));box(x0+.7+j*1.3,.47,cz+4.26,.24,.04,.04,mat(0x81938a));}box(x0+2,.98,cz+4.7,1.1,.08,.75,mat(0xb5b8a9));box(x0+2,1.04,cz+4.7,.76,.04,.48,mat(0x728c88));
 // Punto de baño provisional compartido por los habitantes del piso.
-box(cx+.2,.3,cz+4.8,.7,.55,.7,materials.white);box(cx+.2,.61,cz+5.07,.7,.35,.2,materials.white);box(cx+1.2,.55,cz+5,.65,1,.5,mat(0xddebf0));
+soft(cx+.2,.23,cz+4.78,.42,.4,.52,materials.white,.09);oval(cx+.2,.48,cz+4.73,.74,.22,.8,materials.white);oval(cx+.2,.59,cz+4.72,.49,.035,.53,mat(0xb4ccca));soft(cx+.2,.8,cz+5.06,.68,.65,.24,materials.white,.07);soft(cx+1.2,.55,cz+5,.65,1,.5,mat(0xddebf0),.06);box(cx+1.2,1.06,cz+4.93,.52,.04,.34,materials.white);
 // Electrodomésticos, encimera y vajilla en cada vivienda.
 soft(x0+4.9,1.0,cz+4.7,1.1,1.9,.9,mat(0xe8ebe3),.07);box(x0+4.9,1.05,cz+4.235,1.02,.025,.02,mat(0xa5b4ad));soft(x0+4.55,1.38,cz+4.22,.08,.45,.06,mat(0x889b96),.025);soft(x0+4.55,.65,cz+4.22,.08,.32,.06,mat(0x889b96),.025);box(x0+.8,1.1,cz+5.0,.45,.45,.08,mat(0x607c76));
-for(let k=0;k<3;k++)box(x0+2.5+k*.3,1.09,cz+4.7,.16,.06,.16,mat(0x465953));
+for(const dx of [-.24,.24])for(const dz of [-.18,.18]){cylinder(x0+.8+dx,1.09,cz+4.7+dz,.13,.13,.03,mat(0x36494a));cylinder(x0+.8+dx,1.11,cz+4.7+dz,.08,.08,.012,mat(0x708581))}
+soft(x0+2,1.09,cz+4.7,.58,.035,.42,mat(0x506c68),.05);cylinder(x0+2,1.12,cz+4.7,.06,.06,.02,mat(0xbcd0ca));
+const tap=new THREE.Mesh(new THREE.TorusGeometry(.15,.025,8,20,Math.PI),mat(0xa9b9b0));tap.position.set(x0+2,1.23,cz+4.94);scene.add(tap);
 soft(cx+3.5,.7,cz+3,2.3,.14,1.3,materials.brown,.06);for(const dx of [-.95,.95])for(const dz of [-.46,.46])box(cx+3.5+dx,.35,cz+3+dz,.12,.7,.12,materials.brown);
-for(let dx of [-.6,.6]){let plate=new THREE.Mesh(new THREE.CylinderGeometry(.22,.22,.035,16),materials.white);plate.position.set(cx+3.5+dx,.79,cz+3);scene.add(plate)}for(let dx of [-1.6,1.6])for(let dz of [-.6,.6])diningChair(cx+3.5+dx,cz+3+dz,dz>0?1:-1);label(title,cx,2.4,z0+.5,'#25402f',.8)}
+for(let dx of [-.6,.6]){let plate=new THREE.Mesh(new THREE.CylinderGeometry(.22,.22,.035,16),materials.white);plate.position.set(cx+3.5+dx,.79,cz+3);scene.add(plate)}for(let dx of [-1.6,1.6])for(let dz of [-.6,.6])diningChair(cx+3.5+dx,cz+3+dz,dz>0?1:-1);sofa(cx+4.2,cz+.25);plantPot(cx+6.2,cz+1.1);label(title,cx,2.4,z0+.5,'#25402f',.8)}
 const roomPositions=[];
 const groups=[['Eric','Linkal','Mei','Yaiza'],['Snow','Adrián','Arian','Lolo'],['Delos','May','Pablo'],['Aisuke','Catalán','David']];flat(-10,-7,4,'PISO 1',groups[0]);flat(10,-7,4,'PISO 2',groups[1]);flat(-10,7,3,'PISO 3',groups[2]);flat(10,7,3,'PISO 4',groups[3]);
 box(0,.05,17,36,.13,7,materials.garden);label('JARDÍN COMUNITARIO',0,1,18,'#2d5030',1);function tree(x,z){box(x,.8,z,.45,1.6,.45,materials.brown);let crown=new THREE.Mesh(new THREE.SphereGeometry(1.1,24,16),mat(0x4d9852));crown.position.set(x,2,z);crown.castShadow=true;scene.add(crown)}tree(-14,17);tree(14,17);tree(-17,14);tree(17,14);
