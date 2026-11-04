@@ -42,8 +42,8 @@ const colors=[0xf08b76,0x6da5c9,0xbb93c7,0xe3b66a,0x84b699,0xd18aaf,0x819bcc,0xe
 const faces={Arian:'arian',Delos:'delos',Lolo:'lolo',Eric:'eric',Adrián:'adrian',Aisuke:'aisuke'};const loader=new THREE.TextureLoader();
 roomPositions.forEach((room,i)=>{const g=new THREE.Group();const cloth=mat(colors[i]);let body=new THREE.Mesh(new THREE.CapsuleGeometry(.26,.46,4,10),cloth);body.position.y=.72;g.add(body);let head=new THREE.Mesh(new THREE.SphereGeometry(.43,16,12),mat(0xe8b899));head.position.y=1.38;if(!faces[room.name])g.add(head);let hair=new THREE.Mesh(new THREE.SphereGeometry(.435,16,12,0,Math.PI*2,0,Math.PI*.48),mat(0x49372e));hair.position.y=1.4;if(!faces[room.name])g.add(hair);else {const texture=loader.load('./caras/'+faces[room.name]+'.png',undefined,undefined,()=>{g.add(head);g.add(hair)});texture.colorSpace=THREE.SRGBColorSpace;const face=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthWrite:false}));face.scale.set(1.15,1.15,1);face.position.set(0,1.48,.1);g.add(face)}for(const side of [-1,1]){let eye=new THREE.Mesh(new THREE.SphereGeometry(.035,8,6),mat(0x302b28));eye.position.set(side*.14,1.4,.4);if(!faces[room.name])g.add(eye);let arm=new THREE.Mesh(new THREE.CapsuleGeometry(.075,.32,4,8),cloth);arm.position.set(side*.34,.73,0);arm.rotation.z=side*.18;g.add(arm);let leg=new THREE.Mesh(new THREE.CapsuleGeometry(.1,.28,4,8),mat(0x515b68));leg.position.set(side*.14,.25,0);g.add(leg)}const tagCanvas=document.createElement('canvas');tagCanvas.width=512;tagCanvas.height=128;const tagCtx=tagCanvas.getContext('2d');tagCtx.fillStyle='rgba(255,255,245,.94)';tagCtx.roundRect(10,20,492,88,28);tagCtx.fill();tagCtx.fillStyle='#263e34';tagCtx.font='bold 48px system-ui';tagCtx.textAlign='center';tagCtx.textBaseline='middle';tagCtx.fillText(room.name,256,65);const tag=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(tagCanvas),transparent:true,depthTest:false}));tag.scale.set(1.9,.48,1);tag.position.set(0,2.25,0);tag.renderOrder=2;g.add(tag);scene.add(g);g.position.set(room.x,0,room.z);people.push({g,name:room.name,phase:i*.8,initial:{x:room.x,z:room.z}});});
 // La ruta y sus tiempos vienen del servidor; cada navegador interpola el mismo recorrido.
-let snapshot=null,clockOffset=0;
-function acceptWorld(detail){snapshot=detail.world;clockOffset=detail.serverTime-Date.now()}
+let snapshot=null,clockBase=0,receivedAt=0,clockRate=48;
+function acceptWorld(detail){snapshot=detail.world;clockBase=detail.serverTime;receivedAt=performance.now();clockRate=detail.clockRate||48}
 window.addEventListener('shared-world',event=>acceptWorld(event.detail));
 if(window.sharedWorld)acceptWorld(window.sharedWorld);
 function positionAt(action,fallback,now){
@@ -56,12 +56,12 @@ function positionAt(action,fallback,now){
  return route[route.length-1];
 }
 function resize(){const w=root.clientWidth,h=root.clientHeight;renderer.setSize(w,h);const aspect=w/h;camera.left=-18*aspect;camera.right=18*aspect;camera.top=18;camera.bottom=-18;camera.updateProjectionMatrix()}window.addEventListener('resize',resize);resize();
-function animate(t){requestAnimationFrame(animate);if(snapshot){const byName=new Map(snapshot.people.map(p=>[p.name,p]));const now=Date.now()+clockOffset;for(const p of people){const state=byName.get(p.name);if(!state)continue;const where=positionAt(state.action,state.position??p.initial,now);
+function animate(t){requestAnimationFrame(animate);if(snapshot){const byName=new Map(snapshot.people.map(p=>[p.name,p]));const now=clockBase+(performance.now()-receivedAt)*clockRate;for(const p of people){const state=byName.get(p.name);if(!state)continue;const where=positionAt(state.action,state.position??p.initial,now);
  // Pequeños desplazamientos compartidos durante actividades despiertas.
  const action=state.action,awake=action&&action.id!=='dormir';
  const arrived=action&&now>=action.start+(action.travelMs||0);
- const cycle=awake&&arrived?((now-action.start+p.phase*1000)%16000)/16000:0;
+ const cycle=awake&&arrived?(((now-action.start)/clockRate+p.phase*1000)%16000)/16000:0;
  const excursion=cycle<.25?cycle*4:cycle<.5?2-cycle*4:0;
  const sway=awake&&arrived?excursion*.5:0;
- p.g.position.set(where.x+sway,where.walking?Math.abs(Math.sin(now*.008+p.phase))*.055:awake?Math.abs(Math.sin(now*.005+p.phase))*.025:0,where.z);
+ p.g.position.set(where.x+sway,where.walking?Math.abs(Math.sin(now*.008/clockRate+p.phase))*.055:awake?Math.abs(Math.sin(now*.005/clockRate+p.phase))*.025:0,where.z);
  if(where.angle!==undefined)p.g.rotation.y=where.angle;else if(sway>0)p.g.rotation.y=cycle<.25?Math.PI/2:-Math.PI/2}}controls.update();renderer.render(scene,camera)}requestAnimationFrame(animate);
