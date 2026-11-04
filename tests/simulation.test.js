@@ -59,3 +59,18 @@ test('una propuesta romántica requiere reciprocidad',async()=>{
  assert.equal(respondToProposal(world,offer.id,b.id,true,2),true);
  assert.equal(respondToProposal(world,offer.id,b.id,true,3),false);
 });
+
+test('la experiencia cambia preferencias de forma gradual y acotada',async()=>{
+ const {recordExperience}=await import('../simulation/learning.js');
+ const person={learned:{skills:{},preferences:{}}};
+ recordExperience(person,{activity:'jugar',skill:'juegos',minutes:60,reward:1});
+ assert.equal(person.learned.preferences.jugar,.05);assert.ok(person.learned.skills.juegos>0);
+ for(let i=0;i<500;i++)recordExperience(person,{activity:'jugar',skill:'juegos',minutes:60,reward:1});
+ assert.ok(person.learned.preferences.jugar<=1);assert.ok(person.learned.skills.juegos<=100);
+});
+test('el cuestionario invierte valores y conserva respuestas omitidas',async()=>{
+ const {profileFromAnswers}=await import('../simulation/profiles.js');
+ const p=profileFromAnswers({prefiereSoledad:5},{traits:{orden:.7}});
+ assert.equal(p.traits.privacidad,1);assert.equal(p.traits.sociabilidad,0);assert.equal(p.traits.orden,.7);
+ assert.throws(()=>profileFromAnswers({prefiereSoledad:6}),RangeError);
+});
