@@ -27,7 +27,8 @@ export function profileFromAnswers(answers = {}, previous = {}) {
   }
   return {version:PROFILE_VERSION, provenance:Object.keys(answers).length ? 'cuestionario' : (previous.provenance ?? 'provisional'), traits,
     wakeHour: previous.wakeHour ?? 8, sleepHour: previous.sleepHour ?? 23,
-    interests: [...(previous.interests ?? [])], romanceEnabled: previous.romanceEnabled ?? false};
+    interests: [...(previous.interests ?? [])], romanceEnabled: previous.romanceEnabled ?? false,
+    romancePartners: [...(previous.romancePartners ?? [])]};
 }
 export const residents = [
  ['Eric',['fotografía','ordenador']],['Linkal',['gimnasio','política']],['Mei',['dibujar','ordenador']],
