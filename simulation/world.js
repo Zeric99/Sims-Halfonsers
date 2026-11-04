@@ -97,7 +97,7 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
  const end=Math.min(target,world.lastSimulatedAt+maxMinutes*MINUTE);
  while(world.lastSimulatedAt<end){
   const at=world.lastSimulatedAt,step=Math.min(MINUTE,end-at),next=at+step;
-  for(const p of world.people)if(p.action&&(p.action.until<=at||(p.action.id==='dormir'&&p.needs.energia>=75&&!inSleepWindow(localHour(at,'UTC'),p.profile))))finish(world,p,at);
+  for(const p of world.people)if(p.action&&(p.action.until<=at||(p.action.id==='dormir'&&p.needs.energia>=60&&!inSleepWindow(localHour(at,'UTC'),p.profile))))finish(world,p,at);
   // Dos personas libres y próximas pueden aceptar una charla; una sola acción compartida.
   const available=world.people.filter(p=>!p.action);
   for(let i=0;i<available.length;i++){
