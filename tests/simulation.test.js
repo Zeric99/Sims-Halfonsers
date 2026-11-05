@@ -203,3 +203,20 @@ test('tras descansar suficiente fuera de su horario no vuelve a acostarse',()=>{
  assert.ok(p.action.id!=='dormir');
  assert.ok(world.events.some(e=>e.type==='action_finished'&&e.personId===p.id&&e.action==='dormir'));
 });
+
+test('preparar no sacia y comer recupera saciedad de forma gradual',()=>{
+ const start=Date.UTC(2026,0,1,12),world=createWorld({now:start}),p=world.people[0];
+ p.needs.saciedad=20;
+ p.action={id:'comer',label:'comiendo',start,until:start+33*60000,resource:null,route:[],travelMs:0,meal:{prepareMs:8*60000,eatMs:25*60000}};
+ advanceWorld(world,start+8*60000);const before=p.needs.saciedad;assert.ok(before<20);
+ advanceWorld(world,start+13*60000);assert.ok(p.needs.saciedad>before+11&&p.needs.saciedad<before+12);
+ advanceWorld(world,start+33*60000);assert.ok(Math.abs(p.needs.saciedad-(20-33*4/60+60))<1e-7);
+ advanceWorld(world,start+34*60000);assert.ok(p.needs.saciedad<80);
+});
+test('la reserva de cocina incluye preparación y comida',()=>{
+ const start=Date.UTC(2026,0,1,12),world=createWorld({now:start}),p=world.people[0];
+ p.needs={saciedad:0,energia:90,higiene:90,compania:90,diversion:90,bano:90};
+ advanceWorld(world,start+60000);assert.equal(p.action.id,'comer');
+ assert.equal(p.action.until-p.action.start-p.action.travelMs,33*60000);
+ assert.equal(world.reservations[p.homeId+':kitchen'].until,p.action.until);
+});
