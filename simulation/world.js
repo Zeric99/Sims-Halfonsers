@@ -8,6 +8,7 @@ import { findRoute } from './navigation.js';
 import { proposeRelationship, respondToProposal, endRelationship } from './romance.js';
 import { moodFrom } from './mood.js';
 import { validateWorldEnvelope } from './world-schema.js';
+import { mealPosition } from './meal-stage.js';
 
 export const ENGINE_VERSION = 5;
 export const SCHEMA_VERSION = 1;
@@ -73,8 +74,20 @@ function choose(world,p,at){
 }
 const homes={'piso-1':[-10,-7],'piso-2':[10,-7],'piso-3':[-10,7],'piso-4':[10,7]};
 function roomPosition(p){const [cx,cz]=homes[p.homeId];const slot=residents.filter(r=>r.identity.homeId===p.homeId).findIndex(r=>r.identity.id===p.id);return {x:cx-7+Math.max(0,slot)*3.5+2.5,z:cz-6+3.7}}
-function destination(p,id){const [cx,cz]=homes[p.homeId];if(id==='pasear')return {x:0,z:16};if(id==='fumar'){const index=['Catalán','Linkal','May','Mei'].indexOf(p.name);return {x:-3+index*2,z:17}}if(['dormir','jugar','estudiar'].includes(id))return roomPosition(p);if(['asearse','usar_bano'].includes(id))return {x:cx+.2,z:cz+3.6};if(id==='comer'||id==='limpiar')return {x:cx-1,z:cz+1};return {x:cx+1,z:cz+1}}
+function destination(p,id){const [cx,cz]=homes[p.homeId];if(id==='pasear')return {x:0,z:16};if(id==='fumar'){const index=['Catalán','Linkal','May','Mei'].indexOf(p.name);return {x:-3+index*2,z:17}}if(['dormir','jugar','estudiar'].includes(id))return roomPosition(p);if(['asearse','usar_bano'].includes(id))return {x:cx-5.5,z:cz+4.25};if(id==='comer'||id==='limpiar')return {x:cx-1,z:cz+1};return {x:cx+1,z:cz+1}}
 function routeFor(p,to){return findRoute(p.position??roomPosition(p),to)}
+function planMeal(p,at){
+ const [cx,cz]=homes[p.homeId],stages=[];let cursor=at,position=p.position??roomPosition(p);
+ const walk=(kind,target)=>{const route=findRoute(position,target);if(!route.length)return false;let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const duration=Math.round(length*1500*48);stages.push({kind,start:cursor,end:cursor+duration,route});cursor+=duration;position=route.at(-1);return true};
+ const pause=(kind,duration)=>{stages.push({kind,start:cursor,end:cursor+duration,route:[position]});cursor+=duration};
+ if(!walk('to_fridge',{x:cx+1.3,z:cz+4.35}))return null;
+ pause('fridge',MINUTE);
+ if(!walk('to_stove',{x:cx-2.8,z:cz+4.35}))return null;
+ pause('cooking',8*MINUTE);
+ if(!walk('to_table',{x:cx+1.9,z:cz+1.2}))return null;
+ const eatingStart=cursor;pause('eating',25*MINUTE);
+ return {stages,eatingStart,eatMs:25*MINUTE,seat:{x:cx+1.9,z:cz+1.2},until:cursor};
+}
 function acceptsInvitation(world,p,other){const tension=p.relationships?.[other.id]?.tension??0;const socialNeed=(100-p.needs.compania)/100;const chance=Math.max(.1,Math.min(.9,.25+.35*p.profile.traits.sociabilidad+.3*socialNeed-tension/200));return random(world)<chance}
 function start(world,p,at,forced=null){
  const kitchen=world.reservations[p.homeId+':kitchen'];
@@ -82,13 +95,14 @@ function start(world,p,at,forced=null){
  const selected=forced??choose(world,p,at);if(!selected)return;
  const def=definitions[selected.id];
  const gym=selected.id==='practicar'&&p.profile.interests.includes('gimnasio');
- const route=routeFor(p,gym?{x:9,z:17}:destination(p,selected.id));
+ const meal=selected.id==='comer'?planMeal(p,at):null;
+ const route=selected.id==='comer'?(meal?.stages[0].route??[]):routeFor(p,gym?{x:9,z:17}:destination(p,selected.id));
  if(!route.length){const pos=p.position??roomPosition(p);p.action={id:'esperar',label:definitions.esperar.label,start:at,until:at+3*MINUTE,resource:null,route:[pos],travelMs:0};event(world,'route_blocked',p,at,{action:selected.id});return}
- let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const travelMs=Math.round(length*2000*48),prepareMs=selected.id==='comer'?8*MINUTE:0,until=at+travelMs+prepareMs+def.minutes*MINUTE;
+ let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const travelMs=Math.round(length*1500*48),until=meal?.until??(at+travelMs+def.minutes*MINUTE);
  const hobby=p.profile.interests[0];const label=gym?'levantando pesas en el gimnasio comunitario':selected.id==='practicar'&&hobby?'disfrutando de '+hobby:def.label;
  p.action={id:selected.id,label,start:at,until,resource:selected.key,route,travelMs};
  if(gym)p.action.activity='gimnasio';
- if(selected.id==='comer')p.action.meal={prepareMs,eatMs:def.minutes*MINUTE};
+ if(meal)p.action.meal=meal;
  if(['asearse','usar_bano'].includes(selected.id))p.action.care={durationMs:def.minutes*MINUTE};
  if(selected.key)world.reservations[selected.key]={personId:p.id,until};
  event(world,'action_started',p,at,{action:selected.id});
@@ -121,10 +135,11 @@ function finish(world,p,at){
   const likes=(action.id==='jugar'&&p.profile.interests.includes('ordenador'))||(action.id==='estudiar'&&p.profile.interests.includes('estudio'))||action.id==='practicar';
   recordExperience(p,{activity:action.id,skill:skillByAction[action.id],minutes:Math.max(0,(at-action.start-(action.travelMs||0))/MINUTE),reward:likes?.5:0});
  }
- if(action.route?.length)p.position=action.route[action.route.length-1];p.lastAction=action.id;p.action=null;event(world,'action_finished',p,at,{action:action.id});
+ if(action.meal?.stages)p.position=action.meal.stages.at(-1).route.at(-1);else if(action.route?.length)p.position=action.route[action.route.length-1];p.lastAction=action.id;p.action=null;event(world,'action_finished',p,at,{action:action.id});
 }
 // Una interrupción conserva el punto alcanzado, sin completar ni premiar la acción.
 function positionDuring(action,fallback,at){
+ const meal=mealPosition(action,at);if(meal)return {x:meal.x,z:meal.z};
  const route=action.route;
  if(!route?.length)return fallback;
  if(route.length===1||!action.travelMs||at>=action.start+action.travelMs)return route.at(-1);
@@ -217,7 +232,7 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
    if(asleepMs)p.needs=advanceNeeds(p.needs,asleepMs/HOUR,{sleeping:true,sociability:p.profile.traits.sociabilidad});
    const meal=p.action?.id==='comer'&&p.action.meal;
    if(meal){
-    const eatingStarts=p.action.start+(p.action.travelMs||0)+meal.prepareMs;
+    const eatingStarts=meal.eatingStart??(p.action.start+(p.action.travelMs||0)+meal.prepareMs);
     const eatingEnds=Math.min(p.action.until,eatingStarts+meal.eatMs);
     const elapsed=Math.max(0,Math.min(next,eatingEnds)-Math.max(at,eatingStarts));
     if(elapsed)p.needs.saciedad=limit(p.needs.saciedad+definitions.comer.gain*elapsed/meal.eatMs);

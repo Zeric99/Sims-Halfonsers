@@ -4,9 +4,11 @@ import { readFile } from 'node:fs/promises';
 import { resolve, sep, extname } from 'node:path';
 import { createWorld } from './simulation/world.js';
 import { advanceSharedWorld } from './simulation/shared-world.js';
+import { normalizeChatMessage } from './simulation/chat-validation.js';
 const base=resolve('.'),started=Date.now();
 // Mismo protocolo que el servicio remoto, con almacenamiento temporal en memoria.
 let state=createWorld({seed:73184,now:started}),version=0;
+const chat=[];let chatSequence=0;
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.css':'text/css; charset=utf-8'};
 http.createServer(async(req,res)=>{
  try{
@@ -21,9 +23,15 @@ http.createServer(async(req,res)=>{
    return res.end(JSON.stringify({...data,mode:'prueba_local'}));
   }
   if(url.pathname==='/api/chat'){
-   if(req.method!=='GET'){res.writeHead(405,{'Content-Type':'application/json'});return res.end(JSON.stringify({error:'El chat no está disponible en la prueba local'}))}
-   res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});
-   return res.end(JSON.stringify({messages:[]}));
+   const reply=(status,body)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(body))};
+   if(req.method==='GET')return reply(200,{messages:chat.slice(-100),mode:'prueba_local_temporal'});
+   if(req.method!=='POST')return reply(405,{error:'Método no permitido'});
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)return reply(413,{error:'Mensaje demasiado largo'})}
+   let body;try{body=JSON.parse(raw)}catch{return reply(400,{error:'Mensaje inválido'})}
+   const normalized=normalizeChatMessage(body);if(!normalized)return reply(400,{error:'Escribe un nombre y un mensaje válidos'});
+   const now=Date.now();if(chat.filter(m=>m.name.toLowerCase()===normalized.name.toLowerCase()&&now-Date.parse(m.created_at)<60000).length>=8)return reply(429,{error:'Espera un momento antes de enviar más mensajes'});
+   const message={id:String(++chatSequence),...normalized,created_at:new Date(now).toISOString()};chat.push(message);
+   return reply(201,{message});
   }
   const path=resolve(base,'.'+decodeURIComponent(url.pathname==='/'?'/index.html':url.pathname));
   if(!path.startsWith(base+sep)||path.includes(sep+'.git'+sep)){res.writeHead(403);return res.end()}

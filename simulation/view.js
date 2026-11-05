@@ -41,7 +41,7 @@ async function refresh(){
    const card=document.createElement('details');card.dataset.personId=person.id;card.open=open.has(person.id);card.style.margin='7px 0';
    const title=document.createElement('summary'),name=document.createElement('strong');name.textContent=person.name+': ';
    const action=person.action;let activity=action?.label||'descansando';
-   if(action?.id==='comer'&&action.meal){const arrived=action.start+(action.travelMs||0);if(data.serverTime<arrived)activity='yendo a la cocina';else if(data.serverTime<arrived+action.meal.prepareMs)activity='preparando la comida'}
+   if(action?.id==='comer'&&action.meal)activity=describeResident(world,person.name,data.serverTime).current;
    title.append(name,document.createTextNode(activity));card.append(title);
    const home=document.createElement('p');home.textContent='Hogar: '+person.homeId.replace('piso-','piso ')+' · Ánimo: '+(person.mood?.label??'sin datos');card.append(home);
    const mess=world.households?.[person.homeId]?.mess;

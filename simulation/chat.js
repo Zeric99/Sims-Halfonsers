@@ -5,6 +5,7 @@ async function refresh(){
  try{
   const res=await fetch('/api/chat',{cache:'no-store'});if(!res.ok)throw new Error();
   const data=await readResponse(res),key=data.messages.map(m=>m.id).join(',');
+  const mode=document.querySelector('#chat-mode');if(mode){mode.hidden=data.mode!=='prueba_local_temporal';mode.textContent=mode.hidden?'':'Prueba local: mensajes temporales compartidos entre pestañas.'}
   if(status.textContent==='No se puede cargar el chat. Reintentando…')status.textContent='';if(key===lastKey)return;
   const nearBottom=messages.scrollHeight-messages.scrollTop-messages.clientHeight<50||!lastKey,fragment=document.createDocumentFragment();
   for(const item of data.messages){const row=document.createElement('p'),author=document.createElement('strong'),time=document.createElement('small');author.textContent=item.name+': ';time.textContent=' · '+new Intl.DateTimeFormat('es-ES',{hour:'2-digit',minute:'2-digit'}).format(new Date(item.created_at));row.append(author,document.createTextNode(item.message),time);fragment.append(row)}

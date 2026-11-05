@@ -2,7 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, advanceWorld, resumeAfterAbsence } from '../simulation/world.js';
 import { openConversation, finishConversation } from '../simulation/social.js';
+import { findRoute, isWalkable } from '../simulation/navigation.js';
 const hour=3600000;
+test('los baños de los cuatro pisos son accesibles por la puerta',()=>{
+ for(const [cx,cz] of [[-10,-7],[10,-7],[-10,7],[10,7]]){
+  const target={x:cx-5.5,z:cz+4.5};assert.ok(isWalkable(target.x,target.z));
+  const route=findRoute({x:cx-4.5,z:cz-2.3},target);assert.deepEqual(route.at(-1),target);
+  for(let i=1;i<route.length;i++){
+   const a=route[i-1],b=route[i],steps=Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/.1);
+   for(let j=0;j<=steps;j++)assert.ok(isWalkable(a.x+(b.x-a.x)*j/steps,a.z+(b.z-a.z)*j/steps));
+  }
+ }
+});
 test('un ciclo simulado conserva diversidad y limita la lectura',()=>{
  const start=Date.UTC(2026,0,1,7),world=createWorld({seed:19,now:start});
  const kinds=new Set();
@@ -217,8 +228,21 @@ test('la reserva de cocina incluye preparación y comida',()=>{
  const start=Date.UTC(2026,0,1,12),world=createWorld({now:start}),p=world.people[0];
  p.needs={saciedad:0,energia:90,higiene:90,compania:90,diversion:90,bano:90};
  advanceWorld(world,start+60000);assert.equal(p.action.id,'comer');
- assert.equal(p.action.until-p.action.start-p.action.travelMs,33*60000);
+ assert.deepEqual(p.action.meal.stages.map(s=>s.kind),['to_fridge','fridge','to_stove','cooking','to_table','eating']);
+ assert.equal(p.action.meal.stages.at(-1).start,p.action.meal.eatingStart);
+ assert.equal(p.action.meal.stages.at(-1).end,p.action.until);
  assert.equal(world.reservations[p.homeId+':kitchen'].until,p.action.until);
+});
+test('la comida recorre nevera, fogones y mesa y solo sacia al comer',()=>{
+ const start=Date.UTC(2026,0,1,12),world=createWorld({now:start}),p=world.people[0];
+ p.needs={saciedad:0,energia:90,higiene:90,compania:90,diversion:90,bano:90};
+ advanceWorld(world,start+60000);const meal=p.action.meal,stages=meal.stages;
+ assert.ok(stages.every((s,i)=>s.end>=s.start&&(!i||stages[i-1].end===s.start)));
+ for(const stage of stages){assert.ok(stage.route.length);for(const point of stage.route)assert.ok(isWalkable(point.x,point.z))}
+ assert.equal(stages[0].route.at(-1).x,-8.5);
+ assert.equal(stages[2].route.at(-1).x,-13);
+ advanceWorld(world,meal.eatingStart);const before=p.needs.saciedad;
+ advanceWorld(world,meal.eatingStart+5*60000);assert.ok(p.needs.saciedad>before+10);
 });
 
 test('el gimnasio es comunitario, exclusivo y se llega por una ruta al jardín',()=>{
