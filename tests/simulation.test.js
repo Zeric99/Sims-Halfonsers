@@ -220,3 +220,18 @@ test('la reserva de cocina incluye preparación y comida',()=>{
  assert.equal(p.action.until-p.action.start-p.action.travelMs,33*60000);
  assert.equal(world.reservations[p.homeId+':kitchen'].until,p.action.until);
 });
+
+test('el gimnasio es comunitario, exclusivo y se llega por una ruta al jardín',()=>{
+ const start=Date.UTC(2026,0,1,12),world=createWorld({seed:37,now:start}),seen=new Set();
+ for(let minute=1;minute<=3*24*60;minute+=5){
+  advanceWorld(world,start+minute*60000);
+  const active=world.people.filter(p=>p.action?.activity==='gimnasio');assert.ok(active.length<=1);
+  for(const p of active){
+   seen.add(p.id);assert.ok(p.profile.interests.includes('gimnasio'));
+   assert.equal(p.action.resource,'comunidad:gimnasio');
+   assert.equal(world.reservations['comunidad:gimnasio'].personId,p.id);
+   const end=p.action.route.at(-1);assert.ok(end.z>=13&&Math.abs(end.x-9)<1);
+  }
+ }
+ assert.ok(seen.size>0);
+});
