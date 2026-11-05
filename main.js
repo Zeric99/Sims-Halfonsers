@@ -126,7 +126,7 @@ function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?
  const action=state.action,awake=action&&action.id!=='dormir';
  const arrived=action&&now>=action.start+(action.travelMs||0);
  const seated=arrived&&['jugar','estudiar'].includes(action?.id); 
- const cycle=awake&&arrived&&!seated?(((now-action.start)/clockRate+p.phase*1000)%16000)/16000:0;
+ const cycle=awake&&arrived&&!seated&&!['comer','fumar'].includes(action.id)?(((now-action.start)/clockRate+p.phase*1000)%16000)/16000:0;
  const excursion=cycle<.25?cycle*4:cycle<.5?2-cycle*4:0;
  const sway=awake&&arrived?excursion*.5:0;
  // La postura sigue el momento de llegada calculado por el servidor.
@@ -139,7 +139,7 @@ function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?
  if(sleeping)p.g.rotation.y=0;else if(seated)p.g.rotation.y=Math.PI;else if(where.angle!==undefined)p.g.rotation.y=where.angle;else if(sway>0)p.g.rotation.y=cycle<.25?Math.PI/2:-Math.PI/2;
  p.avatar.position.set(0,.72*lie-.18*seatBlend,.62*lie);p.avatar.rotation.x=-Math.PI/2*lie;
  const eating=action?.id==='comer'&&arrived&&now>=action.start+(action.travelMs||0)+(action.meal?.prepareMs||0);
- const anim=sleeping?'idle':where.walking?'walk':seated?(action.id==='estudiar'?'study':'computer'):eating?'eatStanding':'idle';
+ const anim=sleeping?'idle':where.walking?'walk':action?.id==='fumar'&&arrived?'smoke':seated?(action.id==='estudiar'?'study':'computer'):eating?'eatStanding':'idle';
  p.rig.play(anim);
 
  }
