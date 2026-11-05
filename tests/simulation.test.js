@@ -220,3 +220,18 @@ test('la reserva de cocina incluye preparación y comida',()=>{
  assert.equal(p.action.until-p.action.start-p.action.travelMs,33*60000);
  assert.equal(world.reservations[p.homeId+':kitchen'].until,p.action.until);
 });
+
+test('solo los cuatro fumadores hacen pausas en el jardín',()=>{
+ const start=Date.UTC(2026,0,1,7),world=createWorld({seed:73184,now:start}),allowed=['Catalán','Linkal','May','Mei'],seen=new Set();
+ for(let i=1;i<=168;i++){
+  advanceWorld(world,start+i*3600000);
+  for(const p of world.people)if(p.action?.id==='fumar'){
+   assert.ok(allowed.includes(p.name));seen.add(p.name);
+   assert.ok(p.action.route.at(-1).z>=13);
+  }
+  for(const e of world.events)if(e.type==='action_started'&&e.action==='fumar'){
+   const p=world.people.find(p=>p.id===e.personId);assert.ok(allowed.includes(p.name));seen.add(p.name);
+  }
+ }
+ assert.deepEqual([...seen].sort(),allowed.sort());
+});
