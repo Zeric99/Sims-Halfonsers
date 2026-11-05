@@ -31,7 +31,7 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 ## Fase 1: motor doméstico
 - [ ] Separar identidad, perfil, estado y aprendizaje; validar esquema y migraciones.
 - [ ] Reloj ficticio compartido: ciclo de 20 minutos de día y 10 de noche; falta ampliar las pruebas y el reloj inyectable.
-- [ ] Necesidades por tiempo, comida, sueño con histéresis, higiene, compañía y diversión; baño básico añadido como necesidad y recurso compartido. Faltan calibración y animaciones.
+- [ ] Necesidades por tiempo, comida, sueño con histéresis, higiene, compañía y diversión; baño básico añadido como necesidad y recurso compartido. Se ha añadido una primera histéresis para evitar despertares prematuros y volver a acostarse con energía alta; faltan calibración y animaciones.
 - [ ] Acciones con precondiciones, utilidad, duraciones, interrupciones y resultados únicos. El trayecto ya no consume el tiempo de actividad y dormir no recupera energía antes de llegar; el ocio puede interrumpirse por hambre, sueño o baño críticos cuando el recurso está disponible, liberando la reserva sin dar la recompensa; quedan precondiciones e interrupciones más completas.
 - [ ] Recursos con capacidad, reservas, vencimiento y alternativas. La reserva dura todo el trayecto y la actividad; quedan capacidades y alternativas más generales.
 - [ ] Habitaciones, puertas y rutas válidas sin atravesar muebles; estados de ejecución.
