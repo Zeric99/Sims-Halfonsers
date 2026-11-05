@@ -1,3 +1,26 @@
+import { describeResident } from './resident-details.js';
+const panel=document.querySelector('#resident-panel'),details=document.querySelector('#resident-details'),residentTitle=document.querySelector('#resident-title');
+let selectedResident=null;
+function showResident(){
+ if(!selectedResident||!window.sharedWorld)return;
+ const data=window.sharedWorld,info=describeResident(data.world,selectedResident,data.serverTime);
+ if(!info){panel.hidden=true;return}
+ panel.hidden=false;residentTitle.textContent=info.name;
+ const fragment=document.createDocumentFragment();
+ function row(label,value){const p=document.createElement('p'),b=document.createElement('strong');b.textContent=label+': ';p.append(b,document.createTextNode(value));fragment.append(p)}
+ row('Ahora',info.current);row('Después',info.next);
+ row('Hogar y ánimo',info.home.replace('piso-','Piso ')+' · '+info.mood);
+ const labels={saciedad:'Saciedad',energia:'Energía',higiene:'Higiene',compania:'Compañía',diversion:'Diversión',bano:'Baño'};
+ row('Necesidades',Object.entries(info.needs||{}).map(([k,v])=>(labels[k]||k)+' '+Math.round(v)).join(' · '));
+ row('Tensión',info.tensions.length?info.tensions.map(r=>r.name+' ('+r.tension+'/100)').join(', '):'No hay tensión elevada registrada.');
+ row('Desacuerdos',info.conflicts.length?info.conflicts.map(c=>c.name+' · '+c.cause).join('; '):'No hay conflictos abiertos registrados.');
+ const header=document.createElement('strong');header.textContent='Actividad reciente';fragment.append(header);
+ if(!info.history.length){const p=document.createElement('p');p.textContent='Todavía no hay actividades anteriores en el historial disponible.';fragment.append(p)}
+ for(const item of info.history){const p=document.createElement('p'),time=new Intl.DateTimeFormat('es-ES',{timeZone:'UTC',hour:'2-digit',minute:'2-digit'}).format(item.at);p.textContent=time+' · '+item.text;fragment.append(p)}
+ details.replaceChildren(fragment);
+}
+window.addEventListener('resident-select',event=>{selectedResident=event.detail.name;showResident();panel.scrollIntoView({block:'nearest',behavior:'smooth'})});
+document.querySelector('#resident-close').addEventListener('click',()=>{selectedResident=null;panel.hidden=true});
 const clock=document.querySelector('#world-clock'), list=document.querySelector('#world-activities'), events=document.querySelector('#world-events');
 let lastVersion=-1;
 async function refresh(){
@@ -7,7 +30,7 @@ async function refresh(){
   const data=await response.json(),world=data.world;
   if(world.worldVersion<lastVersion)return;
   lastVersion=world.worldVersion;
-  window.sharedWorld=data;window.dispatchEvent(new CustomEvent('shared-world',{detail:data}));
+  window.sharedWorld=data;showResident();window.dispatchEvent(new CustomEvent('shared-world',{detail:data}));
   const date=new Intl.DateTimeFormat('es-ES',{timeZone:'UTC',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(world.lastSimulatedAt);
   const hour=new Date(world.lastSimulatedAt).getUTCHours();
   clock.textContent=(hour>=7&&hour<23?'☀ Día':'🌙 Noche')+' · '+date+' · ciclo de 30 minutos';
