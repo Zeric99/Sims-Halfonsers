@@ -29,6 +29,7 @@ for(const [cx,cz] of [[-10,-7],[10,-7],[-10,7],[10,7]]){
 for(const [x,z] of [[-14,17],[14,17],[-17,14],[17,14]])obstacle(x,z,.45,.45);
 obstacle(6,16,2.5,.7);obstacle(-6,17,2,1.4);
 function floor(x,z){return (Math.abs(x)<=3.1&&z>=-13.5&&z<=14.5)||(z>=13&&z<=20&&Math.abs(x)<=18)||([-10,10].some(cx=>[-7,7].some(cz=>Math.abs(x-cx)<=7&&Math.abs(z-cz)<=6)))}
+export function isWalkable(x,z){return floor(x,z)&&!obstacles.some(o=>Math.abs(x-o.x)<o.w/2+.22&&Math.abs(z-o.z)<o.d/2+.22)}
 const blocked=new Uint8Array(COLS*ROWS);
 for(let z=0;z<ROWS;z++)for(let x=0;x<COLS;x++){
  const wx=MIN_X+x*STEP,wz=MIN_Z+z*STEP;
