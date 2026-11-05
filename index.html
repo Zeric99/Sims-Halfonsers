@@ -19,7 +19,7 @@
   <div class="scene-heading"><div><span class="eyebrow">BIENVENIDO AL BARRIO</span><h2>La vida en directo<span class="accent-dot">.</span></h2></div><div class="clock-card"><span class="clock-icon">◷</span><div><span class="mini-label">HORA DEL BARRIO</span><p id="world-clock">Conectando con el mundo compartido…</p></div></div></div>
   <div class="world" id="world"><div class="error" id="loading">Cargando el mundo 3D…<br><small>Necesita conexión a internet y un navegador compatible con WebGL.</small></div><div class="scene-label"><span class="scene-label-icon">◇</span><span>VISTA DEL BARRIO<small>LA CASA HALFONCERS</small></span></div><div class="hint"><span>⌖</span> Haz clic en un vecino <b>·</b> Arrastra para girar <b>·</b> Rueda para acercar</div></div>
   <div class="scene-footer"><div><span class="status-dot"></span> UNA COMUNIDAD, MIL HISTORIAS</div><span>OBSERVA CÓMO COBRA VIDA EL BARRIO</span></div>
-  <section class="box resident-card" id="resident-panel" aria-labelledby="resident-title" hidden><div class="section-heading"><div><span class="eyebrow">FICHA DEL VECINO</span><h2 id="resident-title">Vecino</h2></div><button id="resident-close" class="close-button" type="button" aria-label="Cerrar ficha">✕</button></div><div id="resident-details" aria-live="polite"></div></section>
+  <section class="box resident-card" id="resident-panel" aria-labelledby="resident-title" hidden><div class="section-heading"><div><span class="eyebrow">FICHA DEL VECINO</span><h2 id="resident-title">Vecino</h2></div><button id="resident-close" class="close-button" type="button" aria-label="Cerrar ficha">✕</button></div><div id="resident-details" aria-live="polite"></div><section class="resident-phrases" aria-labelledby="phrase-title"><h3 id="phrase-title">Frases del personaje</h3><p>Guarda frases para que aparezcan de vez en cuando al hablar.</p><ul id="phrase-list"></ul><form id="phrase-form" class="chat-form"><label for="phrase-text">AÑADIR FRASE</label><input id="phrase-text" maxlength="100" required placeholder="Escribe una frase…"><button type="submit">Guardar frase <span>↗</span></button><p id="phrase-status" class="chat-status" role="status"></p></form></section></section>
  </div>
  <aside class="sidebar" aria-label="Panel de la comunidad">
   <div class="sidebar-head"><div><span class="eyebrow">EL BARRIO EN DIRECTO</span><h2>Centro social<span class="accent-dot">.</span></h2></div><span class="sidebar-icon">✳</span></div>
@@ -31,5 +31,5 @@
   <p class="sidebar-foot">SIMS HALFONCERS <span>●</span> EN DESARROLLO</p>
  </aside>
 </main>
-<script type="module" src="./main.js"></script><script type="module" src="./simulation/view.js"></script><script type="module" src="./simulation/chat.js"></script>
+<script type="module" src="./main.js"></script><script type="module" src="./simulation/view.js"></script><script type="module" src="./simulation/chat.js"></script><script type="module" src="./simulation/phrases-ui.js"></script>
 </body></html>

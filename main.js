@@ -1,6 +1,7 @@
 import { createMii } from './simulation/mii-rig.js';
 import { separatePeople } from './simulation/separation.js';
 import { isWalkable } from './simulation/navigation.js';
+import { phraseForConversation } from './simulation/phrases.js';
 import { mealPosition, mealStage } from './simulation/meal-stage.js';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
@@ -158,10 +159,11 @@ function acceptWorld(detail){
   for(const id of new Set([e.personId,...(e.participants??[])].filter(Boolean)))reactions.set(id,{kind,at:e.at});
  }
  for(const p of people){const person=byName.get(p.name),c=person?.action?.conversationId&&snapshot.conversations?.[person.action.conversationId];
-  const phrase=c&&!c.finished?(c.participants[0]===person.id?'¿Hablamos de '+c.topic+'?':'¡Claro, cuéntame!'):'';
-  p.bubble.visible=Boolean(phrase);if(phrase&&phrase!==p.bubbleText){const ctx=p.bubbleCanvas.getContext('2d');ctx.clearRect(0,0,512,128);ctx.fillStyle='#fffef3';ctx.beginPath();ctx.roundRect(5,8,502,103,24);ctx.fill();ctx.fillStyle='#243d31';ctx.font='bold 31px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(phrase,256,59,470);p.bubbleTexture.needsUpdate=true;p.bubbleText=phrase}}
+  const phrase=c&&!c.finished?(phraseForConversation(c,person.id,window.residentPhrases||[])||(c.participants[0]===person.id?'¿Hablamos de '+c.topic+'?':'¡Claro, cuéntame!')):'';
+  p.bubble.visible=Boolean(phrase);if(phrase&&phrase!==p.bubbleText){const ctx=p.bubbleCanvas.getContext('2d');ctx.clearRect(0,0,512,128);ctx.fillStyle='#fffef3';ctx.beginPath();ctx.roundRect(5,8,502,103,24);ctx.fill();ctx.fillStyle='#243d31';ctx.font='bold 31px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';const words=phrase.split(' '),lines=[''];for(const word of words){const line=lines.length-1,candidate=lines[line]?(lines[line]+' '+word):word;if(ctx.measureText(candidate).width>460&&lines[line]&&lines.length<3)lines.push(word);else lines[line]=candidate}ctx.font='bold '+(lines.length>2?24:28)+'px system-ui';lines.forEach((line,i)=>ctx.fillText(line,256,59+(i-(lines.length-1)/2)*29,470));p.bubbleTexture.needsUpdate=true;p.bubbleText=phrase}}
 }
 window.addEventListener('shared-world',event=>acceptWorld(event.detail));
+window.addEventListener('resident-phrases-updated',()=>{if(snapshot)acceptWorld({world:snapshot,serverTime:clockBase+(performance.now()-receivedAt)*clockRate,clockRate})});
 if(window.sharedWorld)acceptWorld(window.sharedWorld);
 function positionAt(action,fallback,now){
  const meal=mealPosition(action,now);if(meal)return meal;
