@@ -1,3 +1,4 @@
+import { phraseForConversation } from './phrases.js';
 // Relaciones de personajes ficticios; ningún dato se infiere de personas reales.
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 export function relation(from,to){
@@ -18,6 +19,9 @@ export function openConversation(world,a,b,at){
  const topic=shared[0] ?? 'el día';
  const id=world.worldId+':conversation:'+(++world.eventSequence);
  const conversation={id,participants:[a.id,b.id],topic,start:at,end:at+8*60000,finished:false,outcome:shared.length?'shared_interest':'pleasant'};
+ // Congelar lo que dirá cada participante en el estado compartido: así una
+ // frase añadida durante la charla no cambia el bocadillo de otros visitantes.
+ conversation.lines=Object.fromEntries([a,b].map(p=>[p.id,phraseForConversation(conversation,p.id,world.phraseCatalog||[])]));
  world.conversations[id]=conversation;
  for(const [person,other] of [[a,b],[b,a]]){
   const pos=person.position ?? {x:0,z:0};

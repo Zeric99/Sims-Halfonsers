@@ -17,7 +17,7 @@ http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://127.0.0.1');
   if(url.pathname==='/api/world'){
    const data=await advanceSharedWorld({
-    read:async()=>({version,state:structuredClone(state)}),
+    read:async()=>({version,state:{...structuredClone(state),phraseCatalog:structuredClone(phrases)}}),
     write:async(expected,next)=>{if(version!==expected)return false;state=structuredClone(next);version++;return true}
    });
    if(!data){res.writeHead(503,{'Content-Type':'application/json'});return res.end(JSON.stringify({error:'Mundo ocupado'}))}
