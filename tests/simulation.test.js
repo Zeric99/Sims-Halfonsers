@@ -188,3 +188,18 @@ test('siete días simulados mantienen necesidades y recursos coherentes',()=>{
  }
  for(const kind of ['comer','dormir','asearse','jugar','limpiar'])assert.ok(kinds.has(kind));
 });
+
+test('dormir no termina prematuramente al salir de la franja habitual',()=>{
+ const start=Date.UTC(2026,0,1,7),world=createWorld({now:start}),p=world.people[0];
+ p.profile.sleepHour=22;p.profile.wakeHour=7;p.needs.energia=80;
+ p.action={id:'dormir',label:'durmiendo',start:start-60*60000,until:start+7*hour,resource:null,route:[{x:-14,z:-9}],travelMs:0};
+ advanceWorld(world,start+60000);assert.equal(p.action.id,'dormir');
+});
+test('tras descansar suficiente fuera de su horario no vuelve a acostarse',()=>{
+ const start=Date.UTC(2026,0,1,8),world=createWorld({now:start}),p=world.people[0];
+ p.profile.sleepHour=22;p.profile.wakeHour=7;p.needs.energia=95;
+ p.action={id:'dormir',label:'durmiendo',start:start-6*hour,until:start+2*hour,resource:null,route:[{x:-14,z:-9}],travelMs:0};
+ advanceWorld(world,start+60000);
+ assert.ok(p.action.id!=='dormir');
+ assert.ok(world.events.some(e=>e.type==='action_finished'&&e.personId===p.id&&e.action==='dormir'));
+});
