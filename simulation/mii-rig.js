@@ -7,9 +7,9 @@ export function createMii({color=0x648cc4,faceUrl=null}={}){
  function capsule(parent,r,length,material,x,y,z){const mesh=new THREE.Mesh(new THREE.CapsuleGeometry(r,length,4,10),material);mesh.position.set(x,y,z);mesh.castShadow=true;parent.add(mesh);return mesh}
  const torso=part(root,'torso',0,.72,0);
  capsule(torso,.26,.46,shirt,0,0,0);
- const head=part(torso,'head',0,.66,0);
+ const head=part(torso,'head',0,.78,0);
  const sphere=new THREE.Mesh(new THREE.SphereGeometry(.43,24,16),skin);head.add(sphere);
- if(faceUrl){new THREE.TextureLoader().load(faceUrl,texture=>{texture.colorSpace=THREE.SRGBColorSpace;const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthWrite:false}));sprite.scale.set(1.15,1.15,1);sprite.position.z=.12;head.add(sprite);sphere.visible=false})}
+ if(faceUrl){new THREE.TextureLoader().load(faceUrl,texture=>{texture.colorSpace=THREE.SRGBColorSpace;const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthWrite:false,depthTest:false}));sprite.scale.set(1.15,1.15,1);sprite.position.z=.12;head.add(sprite);sphere.visible=false})}
  else {const hair=new THREE.Mesh(new THREE.SphereGeometry(.435,24,16,0,Math.PI*2,0,Math.PI*.48),new THREE.MeshStandardMaterial({color:0x49372e}));hair.position.y=.02;head.add(hair)}
  for(const [side,label] of [[-1,'left'],[1,'right']]){
   const shoulder=part(torso,label+'Shoulder',side*.32,.18,0);
