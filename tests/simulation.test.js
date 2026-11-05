@@ -235,3 +235,18 @@ test('el gimnasio es comunitario, exclusivo y se llega por una ruta al jardín',
  }
  assert.ok(seen.size>0);
 });
+
+test('rutas entre las catorce habitaciones y destinos habituales evitan obstáculos',async()=>{
+ const {findRoute,isWalkable}=await import('../simulation/navigation.js');
+ for(const cx of [-10,10])for(const cz of [-7,7])for(let slot=0;slot<(cz<0?4:3);slot++){
+  const from={x:cx-7+slot*3.5+2.5,z:cz-6+3.7};
+  const destinations=[{x:0,z:16},{x:cx-1,z:cz+1},{x:cx+.2,z:cz+3.6},{x:cx+1,z:cz+1}];
+  for(const to of destinations){
+   const route=findRoute(from,to);assert.ok(route.length>0);
+   for(let i=1;i<route.length;i++){
+    const a=route[i-1],b=route[i],steps=Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/.1);
+    for(let j=0;j<=steps;j++){const q=j/steps;assert.ok(isWalkable(a.x+(b.x-a.x)*q,a.z+(b.z-a.z)*q));}
+   }
+  }
+ }
+});
