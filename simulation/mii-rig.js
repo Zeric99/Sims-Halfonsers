@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // Cuerpo articulado: cada malla cuelga de su articulación, no de su centro.
-export function createMii({color=0x648cc4,faceUrl=null}={}){
+export function createMii({color=0x648cc4,faceUrl=null,longHair=false}={}){
  const root=new THREE.Group(),skin=new THREE.MeshStandardMaterial({color:0xe8b899}),shirt=new THREE.MeshStandardMaterial({color}),pants=new THREE.MeshStandardMaterial({color:0x515b68}),shoe=new THREE.MeshStandardMaterial({color:0x30383d});
  function part(parent,name,x,y,z){const p=new THREE.Group();p.name=name;p.position.set(x,y,z);parent.add(p);return p}
  function capsule(parent,r,length,material,x,y,z){const mesh=new THREE.Mesh(new THREE.CapsuleGeometry(r,length,4,10),material);mesh.position.set(x,y,z);mesh.castShadow=true;parent.add(mesh);return mesh}
@@ -10,7 +10,7 @@ export function createMii({color=0x648cc4,faceUrl=null}={}){
  const head=part(torso,'head',0,.65,0);
  let faceSprite=null,facePlane=null,sleepBlend=0;
  const sphere=new THREE.Mesh(new THREE.SphereGeometry(.43,24,16),skin);head.add(sphere);
- if(faceUrl){new THREE.TextureLoader().load(faceUrl,texture=>{texture.colorSpace=THREE.SRGBColorSpace;const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthWrite:false,depthTest:false}));sprite.scale.set(1.15,1.15,1);sprite.position.z=.12;head.add(sprite);faceSprite=sprite;facePlane=new THREE.Mesh(new THREE.PlaneGeometry(1.05,1.05),new THREE.MeshBasicMaterial({map:texture,transparent:true,depthWrite:false,side:THREE.DoubleSide}));facePlane.position.z=.44;head.add(facePlane);facePlane.visible=sleepBlend>.5;sprite.visible=!facePlane.visible;sphere.visible=facePlane.visible})}
+ if(faceUrl){new THREE.TextureLoader().load(faceUrl,texture=>{texture.colorSpace=THREE.SRGBColorSpace;const ratio=longHair?texture.image.height/texture.image.width:1,offset=longHair?-.2:0;const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthWrite:false,depthTest:false}));sprite.scale.set(1.15,1.15*ratio,1);sprite.position.set(0,offset,.12);head.add(sprite);faceSprite=sprite;facePlane=new THREE.Mesh(new THREE.PlaneGeometry(1.05,1.05*ratio),new THREE.MeshBasicMaterial({map:texture,transparent:true,depthWrite:false,side:THREE.DoubleSide}));facePlane.position.set(0,offset,.44);head.add(facePlane);facePlane.visible=sleepBlend>.5;sprite.visible=!facePlane.visible;sphere.visible=facePlane.visible})}
  else {const hair=new THREE.Mesh(new THREE.SphereGeometry(.435,24,16,0,Math.PI*2,0,Math.PI*.48),new THREE.MeshStandardMaterial({color:0x49372e}));hair.position.y=.02;head.add(hair);for(const x of [-.14,.14]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.035,8,6),new THREE.MeshStandardMaterial({color:0x302b28}));eye.position.set(x,0,.4);head.add(eye)}}
  const weights=[];
  for(const [side,label] of [[-1,'left'],[1,'right']]){
