@@ -250,3 +250,15 @@ test('rutas entre las catorce habitaciones y destinos habituales evitan obstácu
   }
  }
 });
+
+test('el soporte de pesas bloquea el paso y el punto de entrenamiento sigue accesible',async()=>{
+ const {isWalkable,findRoute}=await import('../simulation/navigation.js');
+ assert.equal(isWalkable(11.4,18.2),false);assert.equal(isWalkable(9,17),true);
+ for(const cx of [-10,10])for(const cz of [-7,7])for(let i=0;i<(cz<0?4:3);i++){
+  const route=findRoute({x:cx-7+i*3.5+2.5,z:cz-6+3.7},{x:9,z:17});assert.ok(route.length>0);
+  for(let k=1;k<route.length;k++){
+   const a=route[k-1],b=route[k],steps=Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/.1);
+   for(let j=0;j<=steps;j++){const q=j/steps;assert.ok(isWalkable(a.x+(b.x-a.x)*q,a.z+(b.z-a.z)*q))}
+  }
+ }
+});
