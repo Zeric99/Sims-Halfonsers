@@ -85,6 +85,7 @@ function start(world,p,at,forced=null){
  const hobby=p.profile.interests[0];const label=selected.id==='practicar'&&hobby?'disfrutando de '+hobby:def.label;
  p.action={id:selected.id,label,start:at,until,resource:selected.key,route,travelMs};
  if(selected.id==='comer')p.action.meal={prepareMs,eatMs:def.minutes*MINUTE};
+ if(['asearse','usar_bano'].includes(selected.id))p.action.care={durationMs:def.minutes*MINUTE};
  if(selected.key)world.reservations[selected.key]={personId:p.id,until};
  event(world,'action_started',p,at,{action:selected.id});
 }
@@ -109,7 +110,7 @@ function finish(world,p,at){
   const home=world.households[p.homeId];home.mess=limit(home.mess-45);
   event(world,'cleaning_finished',p,at,{homeId:p.homeId,mess:home.mess});
  }
- if(def.gain&&!(action.id==='comer'&&action.meal))p.needs[def.need]=limit(p.needs[def.need]+def.gain);
+ if(def.gain&&!(action.id==='comer'&&action.meal)&&!(['asearse','usar_bano'].includes(action.id)&&action.care))p.needs[def.need]=limit(p.needs[def.need]+def.gain);
  if(action.resource&&world.reservations[action.resource]?.personId===p.id){delete world.reservations[action.resource];if(action.resource.endsWith(':kitchen'))releaseKitchen(world,p,at)}
  const skillByAction={jugar:'juegos',estudiar:'estudio',comer:'cocina',practicar:'aficiones'};
  if(skillByAction[action.id]){
@@ -215,6 +216,13 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
     const eatingEnds=Math.min(p.action.until,eatingStarts+meal.eatMs);
     const elapsed=Math.max(0,Math.min(next,eatingEnds)-Math.max(at,eatingStarts));
     if(elapsed)p.needs.saciedad=limit(p.needs.saciedad+definitions.comer.gain*elapsed/meal.eatMs);
+   }
+   // El aseo y el baño solo recuperan la necesidad durante su uso efectivo.
+   const action=p.action,care=action?.care;
+   if(care&&['asearse','usar_bano'].includes(action.id)&&Number.isFinite(care.durationMs)&&care.durationMs>0){
+    const starts=action.start+(action.travelMs||0),ends=Math.min(action.until,starts+care.durationMs);
+    const elapsed=Math.max(0,Math.min(next,ends)-Math.max(at,starts));
+    if(elapsed){const def=definitions[action.id];p.needs[def.need]=limit(p.needs[def.need]+def.gain*elapsed/care.durationMs)}
    }
    p.mood=moodFrom(p);
   }
