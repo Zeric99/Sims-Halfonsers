@@ -17,9 +17,9 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 - [x] Panel de actividades e interpolación básica compartida.
 - [x] Diario lateral de interacciones y chat compartido con nombre libre. Lectura en versión de prueba y validación del servidor comprobadas; falta comprobar el envío entre visitantes reales.
 - [x] Suspensión de sucesos sin visitas.
-- [ ] Trayectos reales por puertas y objetos; las rutas y gestos actuales son provisionales.
-- [ ] Comprobación integral con dos clientes y reinicios.
-- [ ] Convivencia completa: hay conversaciones, relaciones y un conflicto básico por turnos de cocina; faltan causas y planes más variados y validación integral del romance.
+- [ ] Trayectos reales por puertas y objetos; las rutas y gestos actuales son provisionales. Se han comprobado 56 rutas desde habitaciones hacia destinos habituales contra la rejilla de obstáculos; sigue pendiente validar el movimiento y los objetos de la escena real.
+- [ ] Comprobación integral con dos clientes y reinicios. Dos pestañas de producción mostraron el mismo diario y un cliente recuperó el estado al recargar; falta probar concurrencia, desconexión y reinicio del servicio.
+- [ ] Convivencia completa: hay conversaciones, relaciones y un conflicto básico por turnos de cocina; faltan causas y planes más variados y validación integral del romance. Este trabajo corresponde a la fase 2 y no está terminado.
 
 ## Preparación para la fase 1
 - [x] Repositorio original conectado a Vercel y estado compartido en Neon.
