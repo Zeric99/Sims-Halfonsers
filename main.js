@@ -135,13 +135,21 @@ function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?
  const seatBlend=seated?Math.max(0,Math.min(1,(now-(action.start+(action.travelMs||0)))/(clockRate*1200))):0;
  const x=where.x+(p.bed.x-where.x)*lie+(p.chair.x-where.x)*seatBlend+sway,z=where.z+(p.bed.z-where.z)*lie+(p.chair.z-where.z)*seatBlend;
  const bob=0;
- placements.push({p,x,z,bob,fixed:!!sleeping});
+ placements.push({p,x,z,bob,fixed:!!sleeping||!!seated,walking:!!where.walking});
  if(sleeping)p.g.rotation.y=0;else if(seated)p.g.rotation.y=Math.PI;else if(where.angle!==undefined)p.g.rotation.y=where.angle;else if(sway>0)p.g.rotation.y=cycle<.25?Math.PI/2:-Math.PI/2;
  p.avatar.position.set(0,.72*lie-.18*seatBlend,.62*lie);p.avatar.rotation.x=-Math.PI/2*lie;
- const anim=sleeping?'idle':where.walking?'walk':seated?(action.id==='estudiar'?'study':'computer'):'idle';
+ const eating=action?.id==='comer'&&arrived&&now>=action.start+(action.travelMs||0)+(action.meal?.prepareMs||0);
+ const anim=sleeping?'idle':where.walking?'walk':seated?(action.id==='estudiar'?'study':'computer'):eating?'eatStanding':'idle';
  p.rig.play(anim);
- if(anim==='walk'){const speed=where.walking?.5:0;p.rig.mixer.timeScale=speed/.55}else p.rig.mixer.timeScale=1;
- p.rig.mixer.update(frameSeconds);
+
  }
- for(const spot of separatePeople(placements,isWalkable))spot.p.g.position.set(spot.x,spot.bob,spot.z);
+ for(const spot of separatePeople(placements,isWalkable)){
+  const p=spot.p,previous=p.previousRendered;
+  const distance=previous?Math.hypot(spot.x-previous.x,spot.z-previous.z):0;
+  const speed=frameSeconds>0?Math.min(1.5,distance/frameSeconds):0;
+  p.rig.mixer.timeScale=spot.walking?speed/.55:1;
+  p.rig.mixer.update(frameSeconds);
+  p.g.position.set(spot.x,spot.bob,spot.z);
+  p.previousRendered={x:spot.x,z:spot.z};
+ }
  }controls.update();renderer.render(scene,camera)}requestAnimationFrame(animate);
