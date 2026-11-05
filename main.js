@@ -1,3 +1,5 @@
+import { separatePeople } from './simulation/separation.js';
+import { isWalkable } from './simulation/navigation.js';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -112,7 +114,7 @@ function positionAt(action,fallback,now){
  return route[route.length-1];
 }
 function resize(){const w=root.clientWidth,h=root.clientHeight;renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1,2.5));renderer.setSize(w,h);const aspect=w/h;camera.left=-18*aspect;camera.right=18*aspect;camera.top=18;camera.bottom=-18;camera.updateProjectionMatrix()}window.addEventListener('resize',resize);resize();
-function animate(t){requestAnimationFrame(animate);if(snapshot){const byName=new Map(snapshot.people.map(p=>[p.name,p]));const now=clockBase+(performance.now()-receivedAt)*clockRate;const hour=new Date(now).getUTCHours(),night=hour<7||hour>=23;scene.background.setHex(night?0x253952:0xb8d99c);ambient.intensity=night?.8:2;sun.intensity=night?.65:2;for(const p of people){const state=byName.get(p.name);if(!state)continue;
+function animate(t){requestAnimationFrame(animate);if(snapshot){const byName=new Map(snapshot.people.map(p=>[p.name,p]));const now=clockBase+(performance.now()-receivedAt)*clockRate;const hour=new Date(now).getUTCHours(),night=hour<7||hour>=23;scene.background.setHex(night?0x253952:0xb8d99c);ambient.intensity=night?.8:2;sun.intensity=night?.65:2;const placements=[];for(const p of people){const state=byName.get(p.name);if(!state)continue;
  const latest=reactions.get(state.id),age=latest?now-latest.at:Infinity;
  const signal=latest&&age>=0&&age<clockRate*10000?latest.kind:(state.action?.id==='dormir'&&now>=state.action.start+(state.action.travelMs||0)?'sleep':null);
  setReaction(p.reaction,signal);
@@ -129,6 +131,8 @@ function animate(t){requestAnimationFrame(animate);if(snapshot){const byName=new
  const lie=sleeping?Math.max(0,Math.min(1,(now-(action.start+(action.travelMs||0)))/(clockRate*2000))):0;
  const x=where.x+(p.bed.x-where.x)*lie+sway,z=where.z+(p.bed.z-where.z)*lie;
  const bob=where.walking?Math.abs(Math.sin(now*.008/clockRate+p.phase))*.055:awake?Math.abs(Math.sin(now*.005/clockRate+p.phase))*.025:0;
- p.g.position.set(x,bob,z);
+ placements.push({p,x,z,bob,fixed:!!sleeping});
  if(sleeping)p.g.rotation.y=0;else if(where.angle!==undefined)p.g.rotation.y=where.angle;else if(sway>0)p.g.rotation.y=cycle<.25?Math.PI/2:-Math.PI/2;
- p.avatar.position.set(0,.72*lie,.62*lie);p.avatar.rotation.x=-Math.PI/2*lie}}controls.update();renderer.render(scene,camera)}requestAnimationFrame(animate);
+ p.avatar.position.set(0,.72*lie,.62*lie);p.avatar.rotation.x=-Math.PI/2*lie}
+ for(const spot of separatePeople(placements,isWalkable))spot.p.g.position.set(spot.x,spot.bob,spot.z);
+ }controls.update();renderer.render(scene,camera)}requestAnimationFrame(animate);
