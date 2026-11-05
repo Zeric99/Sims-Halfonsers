@@ -7,6 +7,7 @@ import { recordExperience, preferenceBonus } from './learning.js';
 import { findRoute } from './navigation.js';
 import { proposeRelationship, respondToProposal, endRelationship } from './romance.js';
 import { moodFrom } from './mood.js';
+import { validateWorldEnvelope } from './world-schema.js';
 
 export const ENGINE_VERSION = 5;
 export const SCHEMA_VERSION = 1;
@@ -165,6 +166,7 @@ export function resumeAfterAbsence(world,now,{idleThresholdMs=90000,wallNow=now,
 }
 // Procesamiento acotado: el llamador persiste cada lote antes de continuar.
 export function advanceWorld(world,target,{maxMinutes=720}={}){
+ validateWorldEnvelope(world,{schemaVersion:SCHEMA_VERSION,simulationVersion:ENGINE_VERSION});
  if(world.simulationVersion<2){const initial=new Map(residents.map(r=>[r.identity.id,r.profile]));for(const p of world.people){if(p.profile.provenance==='provisional'&&initial.has(p.id))p.profile={...p.profile,traits:initial.get(p.id).traits}}world.simulationVersion=2}
  if(world.simulationVersion<3){for(const p of world.people){p.position=p.position??roomPosition(p);if(p.action&&!p.action.route){p.action.route=[p.position];p.action.travelMs=0}}world.simulationVersion=3}
  if(world.simulationVersion<4){for(const p of world.people)if(!Number.isFinite(p.needs.bano))p.needs.bano=75;world.simulationVersion=4}

@@ -5,6 +5,8 @@ const base=()=>({people:[{id:'a',name:'Ana',homeId:'piso-1',needs:{},relationshi
 test('muestra las etapas conocidas sin inventar la próxima actividad',()=>{
  const w=base(),p=w.people[0];assert.match(describeResident(w,'Ana',0).next,/no ha decidido/);
  p.action={id:'comer',label:'comiendo',start:100,travelMs:100,meal:{prepareMs:50}};
+ assert.equal(describeResident(w,'Ana',150).execution,'MOVING');
+ assert.equal(describeResident(w,'Ana',220).execution,'ACTING');
  assert.match(describeResident(w,'Ana',150).next,/preparar/);
  assert.match(describeResident(w,'Ana',220).current,/Preparando/);
  assert.match(describeResident(w,'Ana',220).next,/Comer/);

@@ -1,4 +1,6 @@
-import { advanceWorld, resumeAfterAbsence } from './world.js';
+import { advanceWorld, resumeAfterAbsence, ENGINE_VERSION, SCHEMA_VERSION } from './world.js';
+import { createSimulationClock, simulationTime } from './clock.js';
+import { validateWorldEnvelope } from './world-schema.js';
 
 // El almacén aporta lectura y escritura condicional por versión.
 // Ante una colisión se vuelve a leer el estado ganador antes de reintentar.
@@ -6,9 +8,11 @@ export async function advanceSharedWorld({read,write,now=Date.now,maxAttempts=5}
  for(let attempt=0;attempt<maxAttempts;attempt++){
   const row=await read();
   if(!row)throw new Error('Mundo no disponible');
-  const world=row.state,wallNow=now(),isNewClock=!world.simulationClock;
-  if(isNewClock)world.simulationClock={realAnchor:wallNow,gameAnchor:Date.UTC(2026,0,1,7),rate:48};
-  const target=world.simulationClock.gameAnchor+(wallNow-world.simulationClock.realAnchor)*world.simulationClock.rate;
+  const world=row.state;
+  validateWorldEnvelope(world,{schemaVersion:SCHEMA_VERSION,simulationVersion:ENGINE_VERSION});
+  const wallNow=now(),isNewClock=!world.simulationClock;
+  if(isNewClock)world.simulationClock=createSimulationClock(wallNow);
+  const target=simulationTime(world.simulationClock,wallNow);
   const returned=resumeAfterAbsence(world,target,{wallNow,force:isNewClock});
   const result=advanceWorld(world,Math.max(target,world.lastSimulatedAt),{maxMinutes:2880});
   world.lastObservedAt=wallNow;

@@ -11,6 +11,12 @@ function store(initial){
   snapshot:()=>({version,state:JSON.parse(JSON.stringify(state))})
  };
 }
+test('un mundo futuro se rechaza antes de preparar una reanudación o escribir',async()=>{
+ const world=createWorld({now:Date.UTC(2026,0,1,7)});world.simulationVersion=999;
+ const before=structuredClone(world);let writes=0;
+ await assert.rejects(advanceSharedWorld({read:async()=>({version:0,state:world}),write:async()=>{writes++;return true},now:()=>1700000000000}),/Versión de simulación/);
+ assert.deepEqual(world,before);assert.equal(writes,0);
+});
 test('dos visitas simultáneas reintentan sin perder ni duplicar cambios',async()=>{
  const wall=1700000000000,game=Date.UTC(2026,0,1,7),initial=createWorld({seed:42,now:game});
  initial.simulationClock={realAnchor:wall-1000,gameAnchor:game,rate:48};initial.lastObservedAt=wall-1000;
@@ -38,4 +44,15 @@ test('el estado serializado se recupera al recrear el cliente',async()=>{
  const resumed=await advanceSharedWorld({read:clientAfterRestart.read,write:clientAfterRestart.write,now:()=>wall+2000});
  assert.ok(resumed.world.lastSimulatedAt>=saved.lastSimulatedAt);
  for(const e of saved.events)assert.ok(resumed.world.events.some(x=>x.id===e.id));
+});
+test('volver tras una ausencia no inventa sucesos sociales ni borra relaciones',async()=>{
+ const wall=1700000000000,game=Date.UTC(2026,0,1,7),world=createWorld({seed:21,now:game});
+ world.simulationClock={realAnchor:wall,gameAnchor:game,rate:48};world.lastObservedAt=wall;
+ world.people[0].relationships[world.people[1].id]={friendship:31,trust:25,tension:4};
+ const db=store(world),later=wall+24*3600000;
+ const result=await advanceSharedWorld({read:db.read,write:db.write,now:()=>later});
+ assert.equal(result.returned,true);
+ assert.equal(result.world.people[0].relationships[world.people[1].id].friendship,31);
+ assert.ok(!result.world.events.some(e=>['conversation_started','conversation_finished','kitchen_wait'].includes(e.type)));
+ assert.equal(result.world.lastObservedAt,later);
 });

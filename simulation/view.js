@@ -8,7 +8,7 @@ function showResident(){
  panel.hidden=false;residentTitle.textContent=info.name;
  const fragment=document.createDocumentFragment();
  function row(label,value){const p=document.createElement('p'),b=document.createElement('strong');b.textContent=label+': ';p.append(b,document.createTextNode(value));fragment.append(p)}
- row('Ahora',info.current);row('Después',info.next);
+ row('Ahora',info.current);row('Estado',({IDLE:'Sin actividad',MOVING:'En camino',WAITING:'Esperando',SLEEPING:'Durmiendo',ACTING:'Realizando actividad'})[info.execution]);row('Después',info.next);
  row('Hogar y ánimo',info.home.replace('piso-','Piso ')+' · '+info.mood);
  const labels={saciedad:'Saciedad',energia:'Energía',higiene:'Higiene',compania:'Compañía',diversion:'Diversión',bano:'Baño'};
  row('Necesidades',Object.entries(info.needs||{}).map(([k,v])=>(labels[k]||k)+' '+Math.round(v)).join(' · '));

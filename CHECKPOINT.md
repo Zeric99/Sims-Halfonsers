@@ -22,7 +22,7 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 - [ ] Convivencia completa: hay conversaciones, relaciones y un conflicto básico por turnos de cocina; faltan causas y planes más variados y validación integral del romance. Este trabajo corresponde a la fase 2 y no está terminado.
 
 ## Preparación para la fase 1
-- En la copia local se han combinado las ramas de personajes, gimnasio y fichas. Las 39 pruebas automáticas pasan; se ha comprobado que la escena carga, el clic abre una ficha y dos pestañas ven el mismo mundo de prueba. El servidor local usa memoria temporal y no verifica Neon ni el chat real.
+- En la copia local se han combinado las ramas de personajes, gimnasio y fichas. Las 47 pruebas automáticas pasan; se ha comprobado que la escena carga, el clic abre una ficha y dos pestañas ven el mismo mundo de prueba. El servidor local usa memoria temporal y no verifica Neon ni el chat real.
 - [x] Repositorio original conectado a Vercel y estado compartido en Neon.
 - [x] Perfiles independientes por mundo, para que una simulación no modifique los valores iniciales de otra.
 - [x] Pruebas ejecutables con `npm test` y flujo de GitHub Actions para cambios en main y pull requests.
@@ -30,12 +30,12 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 - La fase 1 ya se ha comenzado; los puntos siguientes son trabajo pendiente, no requisitos previos bloqueantes.
 
 ## Fase 1: motor doméstico
-- [ ] Separar identidad, perfil, estado y aprendizaje; validar esquema y migraciones.
-- [ ] Reloj ficticio compartido: ciclo de 20 minutos de día y 10 de noche; falta ampliar las pruebas y el reloj inyectable.
+- [ ] Separar identidad, perfil, estado y aprendizaje; validar esquema y migraciones. La envoltura del mundo ahora rechaza versiones futuras, IDs duplicados y metadatos inválidos antes de avanzar; falta completar la separación y validación de todos los campos.
+- [x] Reloj ficticio compartido: ciclo de 20 minutos de día y 10 de noche. Tiene reloj inyectable y pruebas de ambos límites; cambios probados en local, pendientes de despliegue.
 - [ ] Necesidades por tiempo, comida, sueño con histéresis, higiene, compañía y diversión; la saciedad sube gradualmente al comer y el baño es una necesidad con recurso compartido. En la rama de prueba, aseo y baño recuperan sus necesidades gradualmente tras el trayecto, manteniendo compatibilidad con acciones antiguas. Se ha añadido una primera histéresis para evitar despertares prematuros y volver a acostarse con energía alta; faltan calibración y animaciones.
 - [ ] Acciones con precondiciones, utilidad, duraciones, interrupciones y resultados únicos. El trayecto ya no consume el tiempo de actividad y dormir no recupera energía antes de llegar; el ocio puede interrumpirse por hambre, sueño o baño críticos cuando el recurso está disponible, liberando la reserva sin dar la recompensa; quedan precondiciones e interrupciones más completas.
 - [ ] Recursos con capacidad, reservas, vencimiento y alternativas. La reserva dura todo el trayecto y la actividad; quedan capacidades y alternativas más generales.
-- [ ] Habitaciones, puertas y rutas válidas sin atravesar muebles; estados de ejecución.
+- [ ] Habitaciones, puertas y rutas válidas sin atravesar muebles; estados de ejecución. La ficha distingue en camino, esperando, durmiendo y realizando una actividad; falta comprobar visualmente las rutas y su interacción con los muebles.
 - [ ] Cocina/comida, ocio, estudio, ordenador, descanso y limpieza. Implementadas acciones iniciales de comida, sueño, aseo, estudio y ocio; la cocina acumula desorden tras las comidas y puede limpiarse con reserva. Las comidas nuevas incluyen preparación y recuperación gradual de saciedad; faltan recetas, animaciones y otras tareas.
 - [ ] Estado canónico transaccional, control de concurrencia y eventos idempotentes.
 - [ ] Dos clientes, reconexión, reinicio y escenarios de 7 días con semillas. Probados determinismo, siete días y reanudación desde un estado serializado en el núcleo, además de sueño durante el trayecto, duración de reservas e interrupciones por necesidades urgentes; faltan pruebas integrales con Neon, concurrencia y reconexión.
