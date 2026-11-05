@@ -22,6 +22,18 @@ export function createMii({color=0x648cc4,faceUrl=null}={}){
   capsule(knee,.09,.16,pants,0,-.12,0);
   const foot=new THREE.Mesh(new THREE.BoxGeometry(.19,.12,.32),shoe);foot.position.set(0,-.25,.08);foot.castShadow=true;knee.add(foot);
  }
+ // Los accesorios pertenecen al personaje y solo aparecen durante la actividad.
+ const plate=new THREE.Group();plate.name='plate';
+ const dish=new THREE.Mesh(new THREE.CylinderGeometry(.23,.21,.035,24),new THREE.MeshStandardMaterial({color:0xf4f1e3}));plate.add(dish);
+ const food=new THREE.Mesh(new THREE.SphereGeometry(.12,12,8),new THREE.MeshStandardMaterial({color:0xc78851}));food.scale.y=.5;food.position.y=.04;plate.add(food);plate.position.set(-.22,.78,.42);root.add(plate);
+ const book=new THREE.Group(),page=new THREE.MeshStandardMaterial({color:0xfff4d7});
+ for(const side of [-1,1]){const sheet=new THREE.Mesh(new THREE.BoxGeometry(.23,.035,.31),page);sheet.position.x=side*.12;sheet.rotation.z=side*.12;book.add(sheet)}
+ book.position.set(0,.96,.46);root.add(book);
+ const cigarette=new THREE.Group();
+ const stick=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,.19,8),new THREE.MeshStandardMaterial({color:0xf3eddf}));stick.rotation.x=Math.PI/2;cigarette.add(stick);
+ const tip=new THREE.Mesh(new THREE.SphereGeometry(.023,8,6),new THREE.MeshBasicMaterial({color:0xe7753d}));tip.position.z=.10;cigarette.add(tip);
+ cigarette.position.set(0,-.25,.08);root.getObjectByName('rightElbow').add(cigarette);
+ plate.visible=book.visible=cigarette.visible=false;
  const times=[0,.25,.5,.75,1];
  const track=(name,values)=>new THREE.NumberKeyframeTrack(name+'.rotation[x]',times,values);
  const clip=(name,tracks)=>new THREE.AnimationClip(name,1,tracks.map(([joint,values])=>track(joint,values)));
@@ -35,6 +47,7 @@ export function createMii({color=0x648cc4,faceUrl=null}={}){
   ]),
   clip('sit',[['leftHip',sitting],['rightHip',sitting],['leftKnee',knees],['rightKnee',knees]]),
   clip('eat',[['leftHip',sitting],['rightHip',sitting],['leftKnee',knees],['rightKnee',knees],['rightShoulder',[-.6,-.8,-.6,-.35,-.6]],['rightElbow',[-.8,-1.45,-.8,-.4,-.8]]]),
+  clip('smoke',[['rightShoulder',[-.35,-.75,-.8,-.4,-.35]],['rightElbow',[-.4,-1.3,-1.4,-.5,-.4]]]),
   clip('eatStanding',[['rightShoulder',[-.4,-.9,-.4,-.2,-.4]],['rightElbow',[-.4,-1.35,-.4,-.2,-.4]]]),
   clip('study',[['leftHip',sitting],['rightHip',sitting],['leftKnee',knees],['rightKnee',knees],['leftShoulder',[-.7,-.7,-.7,-.7,-.7]],['rightShoulder',[-.7,-.76,-.7,-.64,-.7]],['rightElbow',[-.5,-.65,-.5,-.35,-.5]],['head',[.12,.14,.12,.10,.12]]]),
   clip('computer',[['leftHip',sitting],['rightHip',sitting],['leftKnee',knees],['rightKnee',knees],['leftShoulder',[-.75,-.8,-.75,-.7,-.75]],['rightShoulder',[-.75,-.7,-.75,-.8,-.75]],['leftElbow',[-.65,-.55,-.65,-.75,-.65]],['rightElbow',[-.65,-.75,-.65,-.55,-.65]]])
@@ -42,6 +55,6 @@ export function createMii({color=0x648cc4,faceUrl=null}={}){
  // Levantar el tronco en la postura sentada evita que atraviese el asiento.
  for(const animation of clips.filter(c=>['sit','eat','study','computer'].includes(c.name)))animation.tracks.push(new THREE.NumberKeyframeTrack('torso.position[y]',[0,1],[.94,.94]));
  const mixer=new THREE.AnimationMixer(root),actions=Object.fromEntries(clips.map(c=>[c.name,mixer.clipAction(c)]));let current=null;
- function play(name){const next=actions[name]??actions.idle;if(next===current)return;if(current)current.fadeOut(.2);next.reset().setEffectiveWeight(1).fadeIn(.2).play();current=next}
+ function play(name){plate.visible=name==='eatStanding'||name==='eat';book.visible=name==='study';cigarette.visible=name==='smoke';const next=actions[name]??actions.idle;if(next===current)return;if(current)current.fadeOut(.2);next.reset().setEffectiveWeight(1).fadeIn(.2).play();current=next}
  play('idle');return {root,mixer,play};
 }
