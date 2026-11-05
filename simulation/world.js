@@ -40,7 +40,8 @@ function choose(world,p,at){
  const hour=localHour(at,'UTC'),sleepTime=inSleepWindow(hour,p.profile),n=p.needs,options=[];
  for(const [id,a] of Object.entries(definitions)){
   if(id==='charlar'||id==='esperar')continue; // Conversación compartida se incorpora con consentimiento en una fase posterior.
-  const key=a.resource?(p.homeId+':'+a.resource+(['bed','computer'].includes(a.resource)?':'+p.id:'')):null;
+  const gym=id==='practicar'&&p.profile.interests.includes('gimnasio');
+  const key=gym?'comunidad:gimnasio':a.resource?(p.homeId+':'+a.resource+(['bed','computer'].includes(a.resource)?':'+p.id:'')):null;
   if(key&&world.reservations[key]&&world.reservations[key].until>at)continue;
   const mess=world.households[p.homeId]?.mess??0;
   if(id==='limpiar'&&mess<20)continue;
@@ -76,11 +77,13 @@ function start(world,p,at,forced=null){
  if(p.needs.saciedad<50&&kitchen&&kitchen.until>at&&kitchen.personId!==p.id){const occupant=world.people.find(q=>q.id===kitchen.personId);if(occupant)recordKitchenWait(world,p,occupant,at)}
  const selected=forced??choose(world,p,at);if(!selected)return;
  const def=definitions[selected.id];
- const route=routeFor(p,destination(p,selected.id));
+ const gym=selected.id==='practicar'&&p.profile.interests.includes('gimnasio');
+ const route=routeFor(p,gym?{x:9,z:17}:destination(p,selected.id));
  if(!route.length){const pos=p.position??roomPosition(p);p.action={id:'esperar',label:definitions.esperar.label,start:at,until:at+3*MINUTE,resource:null,route:[pos],travelMs:0};event(world,'route_blocked',p,at,{action:selected.id});return}
  let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const travelMs=Math.round(length*2000*48),prepareMs=selected.id==='comer'?8*MINUTE:0,until=at+travelMs+prepareMs+def.minutes*MINUTE;
- const hobby=p.profile.interests[0];const label=selected.id==='practicar'&&hobby?'disfrutando de '+hobby:def.label;
+ const hobby=p.profile.interests[0];const label=gym?'levantando pesas en el gimnasio comunitario':selected.id==='practicar'&&hobby?'disfrutando de '+hobby:def.label;
  p.action={id:selected.id,label,start:at,until,resource:selected.key,route,travelMs};
+ if(gym)p.action.activity='gimnasio';
  if(selected.id==='comer')p.action.meal={prepareMs,eatMs:def.minutes*MINUTE};
  if(selected.key)world.reservations[selected.key]={personId:p.id,until};
  event(world,'action_started',p,at,{action:selected.id});
