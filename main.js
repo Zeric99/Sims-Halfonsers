@@ -1,3 +1,4 @@
+import { speechAt } from './simulation/speech.js';
 import { createMii } from './simulation/mii-rig.js';
 import { separatePeople } from './simulation/separation.js';
 import { isWalkable } from './simulation/navigation.js';
@@ -132,7 +133,7 @@ function setReaction(effect,kind){
 }
 const colors=[0xf08b76,0x6da5c9,0xbb93c7,0xe3b66a,0x84b699,0xd18aaf,0x819bcc,0xe9a37a,0x9dbb71,0xb58dc4,0xd5a264,0x6caeb0,0xca8c82,0xc6a6d6];const people=[];
 const faces={Pablo:'pablo-recortada',Snow:'snow-recortada',David:'david-recortada',Linkal:'linkal-recortada',Catalán:'catalan-recortada',Yaiza:'yaiza-recortada',May:'may-recortada',Mei:'mei-recortada',Arian:'arian',Delos:'delos',Lolo:'lolo',Eric:'eric',Adrián:'adrian',Aisuke:'aisuke'};const loader=new THREE.TextureLoader();
-roomPositions.forEach((room,i)=>{const g=new THREE.Group(),rig=createMii({color:colors[i],longHair:['May','Yaiza'].includes(room.name),faceUrl:faces[room.name]?'./caras/'+faces[room.name]+'.png':null}),avatar=rig.root;g.add(avatar);const tag=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTexture(room.name,72,256),transparent:true,depthTest:false,depthWrite:false}));tag.scale.set(2.4,1.2,1);tag.position.set(0,2.6,0);tag.renderOrder=2;g.add(tag);scene.add(g);g.position.set(room.x,0,room.z);const bubbleCanvas=document.createElement('canvas');bubbleCanvas.width=512;bubbleCanvas.height=128;const bubbleTexture=new THREE.CanvasTexture(bubbleCanvas);const bubble=new THREE.Sprite(new THREE.SpriteMaterial({map:bubbleTexture,transparent:true,depthTest:false}));bubble.scale.set(3.2,.8,1);bubble.position.set(0,3.1,0);bubble.visible=false;bubble.renderOrder=3;g.add(bubble);const reaction=makeReaction();g.add(reaction.ring,reaction.icon);people.push({g,avatar,tag,rig,chair:{x:room.x+.05,z:room.z-1.7},bed:{x:room.bedX,z:room.bedZ},reaction,bubble,bubbleCanvas,bubbleTexture,bubbleText:'',name:room.name,phase:i*.8,initial:{x:room.x,z:room.z}});});
+roomPositions.forEach((room,i)=>{const g=new THREE.Group(),rig=createMii({color:colors[i],longHair:['May','Yaiza'].includes(room.name),faceUrl:faces[room.name]?'./caras/'+faces[room.name]+'.png':null}),avatar=rig.root;g.add(avatar);const tag=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTexture(room.name,72,256),transparent:true,depthTest:false,depthWrite:false}));tag.scale.set(2.4,1.2,1);tag.position.set(0,2.6,0);tag.renderOrder=2;g.add(tag);scene.add(g);g.position.set(room.x,0,room.z);const bubbleCanvas=document.createElement('canvas');bubbleCanvas.width=1024;bubbleCanvas.height=512;const bubbleTexture=new THREE.CanvasTexture(bubbleCanvas);const bubble=new THREE.Sprite(new THREE.SpriteMaterial({map:bubbleTexture,transparent:true,depthTest:false}));bubble.scale.set(5,2.5,1);bubble.position.set(0,4.25,0);bubble.visible=false;bubble.renderOrder=3;g.add(bubble);const reaction=makeReaction();g.add(reaction.ring,reaction.icon);people.push({g,avatar,tag,rig,chair:{x:room.x+.05,z:room.z-1.7},bed:{x:room.bedX,z:room.bedZ},reaction,bubble,bubbleCanvas,bubbleTexture,bubbleText:'',name:room.name,phase:i*.8,initial:{x:room.x,z:room.z}});});
 // Una pulsación breve selecciona; arrastrar sigue controlando la cámara.
 const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();let press=null;
 renderer.domElement.addEventListener('pointerdown',e=>{press=e.button===0?{x:e.clientX,y:e.clientY,id:e.pointerId}:null});
@@ -157,12 +158,21 @@ function acceptWorld(detail){
  for(const e of snapshot.events??[]){const kind=kinds[e.type];if(!kind||(e.type==='activity_interrupted'&&e.reason!=='necesidad urgente'))continue;
   for(const id of new Set([e.personId,...(e.participants??[])].filter(Boolean)))reactions.set(id,{kind,at:e.at});
  }
- for(const p of people){const person=byName.get(p.name),c=person?.action?.conversationId&&snapshot.conversations?.[person.action.conversationId];
-  const phrase=c&&!c.finished?(c.lines?.[person.id]||(c.participants[0]===person.id?'¿Hablamos de '+c.topic+'?':'¡Claro, cuéntame!')):'';
-  p.bubble.visible=Boolean(phrase);if(phrase&&phrase!==p.bubbleText){const ctx=p.bubbleCanvas.getContext('2d');ctx.clearRect(0,0,512,128);ctx.fillStyle='#fffef3';ctx.beginPath();ctx.roundRect(5,8,502,103,24);ctx.fill();ctx.fillStyle='#243d31';ctx.font='bold 31px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';const words=phrase.split(' '),lines=[''];for(const word of words){const line=lines.length-1,candidate=lines[line]?(lines[line]+' '+word):word;if(ctx.measureText(candidate).width>460&&lines[line]&&lines.length<3)lines.push(word);else lines[line]=candidate}ctx.font='bold '+(lines.length>2?24:28)+'px system-ui';lines.forEach((line,i)=>ctx.fillText(line,256,59+(i-(lines.length-1)/2)*29,470));p.bubbleTexture.needsUpdate=true;p.bubbleText=phrase}}
+ // Los bocadillos se actualizan por fotograma a partir del reloj compartido.
+
 }
 window.addEventListener('shared-world',event=>acceptWorld(event.detail));
 if(window.sharedWorld)acceptWorld(window.sharedWorld);
+function drawSpeech(p,phrase){
+ p.bubble.visible=Boolean(phrase);if(!phrase||phrase===p.bubbleText)return;
+ const ctx=p.bubbleCanvas.getContext('2d');ctx.clearRect(0,0,1024,512);
+ ctx.fillStyle='#fffefa';ctx.strokeStyle='#101820';ctx.lineWidth=14;ctx.lineJoin='round';
+ ctx.beginPath();ctx.moveTo(115,20);ctx.lineTo(909,20);ctx.quadraticCurveTo(1004,20,1004,105);ctx.lineTo(1004,344);ctx.quadraticCurveTo(1004,405,919,405);ctx.lineTo(530,405);ctx.quadraticCurveTo(489,470,407,486);ctx.quadraticCurveTo(432,448,430,405);ctx.lineTo(105,405);ctx.quadraticCurveTo(20,405,20,325);ctx.lineTo(20,105);ctx.quadraticCurveTo(20,20,115,20);ctx.closePath();ctx.fill();ctx.stroke();
+ ctx.fillStyle='#18222b';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='700 64px system-ui, sans-serif';
+ const lines=[''];for(const word of phrase.split(' ')){const k=lines.length-1,candidate=lines[k]?lines[k]+' '+word:word;if(ctx.measureText(candidate).width>900&&lines[k]&&lines.length<4)lines.push(word);else lines[k]=candidate}
+ const fontSize=lines.length>3?48:lines.length>2?55:64;ctx.font='700 '+fontSize+'px system-ui, sans-serif';lines.forEach((line,i)=>ctx.fillText(line,512,210+(i-(lines.length-1)/2)*(fontSize+10),900));
+ p.bubbleTexture.needsUpdate=true;p.bubbleText=phrase;
+}
 function positionAt(action,fallback,now){
  const meal=mealPosition(action,now);if(meal)return meal;
  const route=action?.route;if(!route?.length)return fallback;
@@ -180,6 +190,8 @@ function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?
  const signal=latest&&age>=0&&age<clockRate*10000?latest.kind:(state.action?.id==='dormir'&&now>=state.action.start+(state.action.travelMs||0)?'sleep':null);
  setReaction(p.reaction,signal);
  if(signal){const pulse=.9+.1*Math.sin(t*.006+p.phase);p.reaction.ring.scale.setScalar(pulse);p.reaction.ring.material.opacity=.30+.12*(1+Math.sin(t*.006+p.phase));p.reaction.icon.position.y=3.35+Math.sin(t*.002+p.phase)*.08}
+ const conversation=state.action?.conversationId&&snapshot.conversations?.[state.action.conversationId];
+ drawSpeech(p,speechAt(conversation,state.id,now));
  const where=positionAt(state.action,state.position??p.initial,now);
  // Pequeños desplazamientos compartidos durante actividades despiertas.
  const action=state.action,awake=action&&action.id!=='dormir';

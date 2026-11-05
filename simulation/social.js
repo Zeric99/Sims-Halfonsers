@@ -18,7 +18,7 @@ export function openConversation(world,a,b,at){
  const shared=a.profile.interests.filter(x=>b.profile.interests.includes(x));
  const topic=shared[0] ?? 'el día';
  const id=world.worldId+':conversation:'+(++world.eventSequence);
- const conversation={id,participants:[a.id,b.id],topic,start:at,end:at+8*60000,finished:false,outcome:shared.length?'shared_interest':'pleasant'};
+ const conversation={id,participants:[a.id,b.id],topic,start:at,end:at+24*60000,finished:false,outcome:shared.length?'shared_interest':'pleasant'};
  // Congelar lo que dirá cada participante en el estado compartido: así una
  // frase añadida durante la charla no cambia el bocadillo de otros visitantes.
  conversation.lines=Object.fromEntries([a,b].map(p=>[p.id,phraseForConversation(conversation,p.id,world.phraseCatalog||[])]));
