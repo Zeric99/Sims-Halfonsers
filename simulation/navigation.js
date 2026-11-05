@@ -14,20 +14,22 @@ for(const [cx,cz] of [[-10,-7],[10,-7],[-10,7],[10,7]]){
  for(let i=0;i<n;i++){
   const x=x0+i*3.5;
   obstacle(x+3.5,z0+2.45,.12,4.9);
-  obstacle(x+1.15,z0+2.4,1.15,1.75);
+  obstacle(x+1.15,z0+2.4,1.18,1.85);
   obstacle(x+2.7,z0+1.1,.8,.7);
   obstacle(x+2.55,z0+1.12,1.35,.75);
   obstacle(x+2.55,z0+2,.6,.6);
  }
  for(let i=0;i<3;i++)obstacle(x0+.7+i*1.3,cz+4.7,1.2,.8);
  obstacle(x0+4.9,cz+4.7,1.1,.9);
- obstacle(cx+.2,cz+4.8,.7,.7);obstacle(cx+1.2,cz+5,.65,.5);
+ obstacle(cx+.2,cz+4.73,.74,.8);obstacle(cx+1.2,cz+5,.65,.5);
  obstacle(cx+3.5,cz+3,2.3,1.3);
  obstacle(cx+4.2,cz+.25,2.55,.95);obstacle(cx+6.2,cz+1.1,.6,.6);
- for(const dx of [-1.6,1.6])for(const dz of [-.6,.6])obstacle(cx+3.5+dx,cz+3+dz,.5,.5);
+ for(const dx of [-1.6,1.6])for(const dz of [-.6,.6])obstacle(cx+3.5+dx,cz+3+dz,.55,.56);
 }
 for(const [x,z] of [[-14,17],[14,17],[-17,14],[17,14]])obstacle(x,z,.45,.45);
 obstacle(6,16,2.5,.7);obstacle(-6,17,2,1.4);
+// Soporte de pesas dibujado en el gimnasio del jardín.
+obstacle(11.4,18.2,1.9,.7);
 function floor(x,z){return (Math.abs(x)<=3.1&&z>=-13.5&&z<=14.5)||(z>=13&&z<=20&&Math.abs(x)<=18)||([-10,10].some(cx=>[-7,7].some(cz=>Math.abs(x-cx)<=7&&Math.abs(z-cz)<=6)))}
 export function isWalkable(x,z){return floor(x,z)&&!obstacles.some(o=>Math.abs(x-o.x)<o.w/2+.22&&Math.abs(z-o.z)<o.d/2+.22)}
 const blocked=new Uint8Array(COLS*ROWS);
