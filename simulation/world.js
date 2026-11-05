@@ -16,6 +16,7 @@ const definitions={
  esperar:{label:'esperando un camino libre',minutes:3,need:'energia',gain:0,resource:null},
  practicar:{label:'disfrutando de su afición',minutes:30,need:'diversion',gain:25,resource:null},
  ver_tv:{label:'viendo la tele',minutes:40,need:'diversion',gain:25,resource:'sofa'},
+ fumar:{label:'fumando en el jardín',minutes:12,need:'diversion',gain:8,resource:null},
  pasear:{label:'dando un paseo',minutes:15,need:'diversion',gain:12,resource:null},
  dormir:{label:'durmiendo',minutes:480,need:'energia',gain:0,resource:'bed'},
  comer:{label:'comiendo',minutes:25,need:'saciedad',gain:60,resource:'kitchen'},
@@ -40,6 +41,7 @@ function choose(world,p,at){
  const hour=localHour(at,'UTC'),sleepTime=inSleepWindow(hour,p.profile),n=p.needs,options=[];
  for(const [id,a] of Object.entries(definitions)){
   if(id==='charlar'||id==='esperar')continue; // Conversación compartida se incorpora con consentimiento en una fase posterior.
+  if(id==='fumar'&&(!['Catalán','Linkal','May','Mei'].includes(p.name)||at-(p.lastSmokedAt??-Infinity)<3*HOUR||sleepTime||n.energia<25))continue;
   const key=a.resource?(p.homeId+':'+a.resource+(['bed','computer'].includes(a.resource)?':'+p.id:'')):null;
   if(key&&world.reservations[key]&&world.reservations[key].until>at)continue;
   const mess=world.households[p.homeId]?.mess??0;
@@ -55,6 +57,7 @@ function choose(world,p,at){
   if(id==='practicar')score+=.14;
   if(id==='ver_tv')score+=.10;
   if(id==='pasear')score+=.09;
+  if(id==='fumar')score+=.12;
   const others=world.people.filter(other=>other.id!==p.id&&other.action?.id===id).length;
   if(id==='leer'&&others>=2)continue;
   if(!['dormir','comer','charlar'].includes(id))score-=Math.max(0,others-1)*.10;
@@ -68,7 +71,7 @@ function choose(world,p,at){
 }
 const homes={'piso-1':[-10,-7],'piso-2':[10,-7],'piso-3':[-10,7],'piso-4':[10,7]};
 function roomPosition(p){const [cx,cz]=homes[p.homeId];const slot=residents.filter(r=>r.identity.homeId===p.homeId).findIndex(r=>r.identity.id===p.id);return {x:cx-7+Math.max(0,slot)*3.5+2.5,z:cz-6+3.7}}
-function destination(p,id){const [cx,cz]=homes[p.homeId];if(id==='pasear')return {x:0,z:16};if(['dormir','jugar','estudiar'].includes(id))return roomPosition(p);if(['asearse','usar_bano'].includes(id))return {x:cx+.2,z:cz+3.6};if(id==='comer'||id==='limpiar')return {x:cx-1,z:cz+1};return {x:cx+1,z:cz+1}}
+function destination(p,id){const [cx,cz]=homes[p.homeId];if(id==='pasear')return {x:0,z:16};if(id==='fumar'){const index=['Catalán','Linkal','May','Mei'].indexOf(p.name);return {x:-3+index*2,z:17}}if(['dormir','jugar','estudiar'].includes(id))return roomPosition(p);if(['asearse','usar_bano'].includes(id))return {x:cx+.2,z:cz+3.6};if(id==='comer'||id==='limpiar')return {x:cx-1,z:cz+1};return {x:cx+1,z:cz+1}}
 function routeFor(p,to){return findRoute(p.position??roomPosition(p),to)}
 function acceptsInvitation(world,p,other){const tension=p.relationships?.[other.id]?.tension??0;const socialNeed=(100-p.needs.compania)/100;const chance=Math.max(.1,Math.min(.9,.25+.35*p.profile.traits.sociabilidad+.3*socialNeed-tension/200));return random(world)<chance}
 function start(world,p,at,forced=null){
@@ -100,6 +103,7 @@ function finish(world,p,at){
    }
   }
  }
+ if(action.id==='fumar')p.lastSmokedAt=at;
  if(action.id==='comer')world.households[p.homeId].mess=limit(world.households[p.homeId].mess+12);
  if(action.id==='limpiar'){
   const home=world.households[p.homeId];home.mess=limit(home.mess-45);
@@ -127,7 +131,7 @@ function positionDuring(action,fallback,at){
 }
 function addressUrgentNeed(world,p,at){
  const old=p.action;
- if(!old||!['practicar','ver_tv','pasear','jugar','estudiar','descansar','leer','esperar','limpiar'].includes(old.id))return false;
+ if(!old||!['practicar','ver_tv','pasear','jugar','estudiar','descansar','leer','esperar','limpiar','fumar'].includes(old.id))return false;
  const critical=p.needs.bano<12?'usar_bano':p.needs.saciedad<10?'comer':p.needs.energia<8?'dormir':null;
  if(!critical)return false;
  const resource=definitions[critical].resource;
