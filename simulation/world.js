@@ -78,9 +78,10 @@ function start(world,p,at,forced=null){
  const def=definitions[selected.id];
  const route=routeFor(p,destination(p,selected.id));
  if(!route.length){const pos=p.position??roomPosition(p);p.action={id:'esperar',label:definitions.esperar.label,start:at,until:at+3*MINUTE,resource:null,route:[pos],travelMs:0};event(world,'route_blocked',p,at,{action:selected.id});return}
- let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const travelMs=Math.round(length*2000*48),until=at+travelMs+def.minutes*MINUTE;
+ let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const travelMs=Math.round(length*2000*48),prepareMs=selected.id==='comer'?8*MINUTE:0,until=at+travelMs+prepareMs+def.minutes*MINUTE;
  const hobby=p.profile.interests[0];const label=selected.id==='practicar'&&hobby?'disfrutando de '+hobby:def.label;
  p.action={id:selected.id,label,start:at,until,resource:selected.key,route,travelMs};
+ if(selected.id==='comer')p.action.meal={prepareMs,eatMs:def.minutes*MINUTE};
  if(selected.key)world.reservations[selected.key]={personId:p.id,until};
  event(world,'action_started',p,at,{action:selected.id});
 }
@@ -104,7 +105,7 @@ function finish(world,p,at){
   const home=world.households[p.homeId];home.mess=limit(home.mess-45);
   event(world,'cleaning_finished',p,at,{homeId:p.homeId,mess:home.mess});
  }
- if(def.gain)p.needs[def.need]=limit(p.needs[def.need]+def.gain);
+ if(def.gain&&!(action.id==='comer'&&action.meal))p.needs[def.need]=limit(p.needs[def.need]+def.gain);
  if(action.resource&&world.reservations[action.resource]?.personId===p.id){delete world.reservations[action.resource];if(action.resource.endsWith(':kitchen'))releaseKitchen(world,p,at)}
  const skillByAction={jugar:'juegos',estudiar:'estudio',comer:'cocina',practicar:'aficiones'};
  if(skillByAction[action.id]){
@@ -204,6 +205,13 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
    const asleepMs=step-awakeMs;
    if(awakeMs)p.needs=advanceNeeds(p.needs,awakeMs/HOUR,{sleeping:false,sociability:p.profile.traits.sociabilidad});
    if(asleepMs)p.needs=advanceNeeds(p.needs,asleepMs/HOUR,{sleeping:true,sociability:p.profile.traits.sociabilidad});
+   const meal=p.action?.id==='comer'&&p.action.meal;
+   if(meal){
+    const eatingStarts=p.action.start+(p.action.travelMs||0)+meal.prepareMs;
+    const eatingEnds=Math.min(p.action.until,eatingStarts+meal.eatMs);
+    const elapsed=Math.max(0,Math.min(next,eatingEnds)-Math.max(at,eatingStarts));
+    if(elapsed)p.needs.saciedad=limit(p.needs.saciedad+definitions.comer.gain*elapsed/meal.eatMs);
+   }
    p.mood=moodFrom(p);
   }
   world.lastSimulatedAt=next;
