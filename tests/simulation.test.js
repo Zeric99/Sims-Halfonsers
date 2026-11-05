@@ -262,3 +262,35 @@ test('el soporte de pesas bloquea el paso y el punto de entrenamiento sigue acce
   }
  }
 });
+
+test('solo los cuatro fumadores hacen pausas en el jardín',()=>{
+ const start=Date.UTC(2026,0,1,7),world=createWorld({seed:73184,now:start}),allowed=['Catalán','Linkal','May','Mei'],seen=new Set();
+ for(let i=1;i<=168;i++){
+  advanceWorld(world,start+i*3600000);
+  for(const p of world.people)if(p.action?.id==='fumar'){
+   assert.ok(allowed.includes(p.name));seen.add(p.name);
+   assert.ok(p.action.route.at(-1).z>=13);
+  }
+  for(const e of world.events)if(e.type==='action_started'&&e.action==='fumar'){
+   const p=world.people.find(p=>p.id===e.personId);assert.ok(allowed.includes(p.name));seen.add(p.name);
+  }
+ }
+ assert.deepEqual([...seen].sort(),allowed.sort());
+});
+
+test('aseo y baño recuperan necesidades al llegar y sin recompensa duplicada',()=>{
+ for(const [id,need,gain,duration,decay] of [['asearse','higiene',70,10,2],['usar_bano','bano',80,5,5]]){
+  const start=Date.UTC(2026,0,1,12),world=createWorld({now:start}),p=world.people[0],minute=60000;
+  p.needs[need]=10;
+  p.action={id,label:id,start,until:start+(2+duration)*minute,resource:null,route:[],travelMs:2*minute,care:{durationMs:duration*minute}};
+  advanceWorld(world,start+2*minute);assert.ok(p.needs[need]<10);
+  advanceWorld(world,start+(2+duration)*minute);
+  assert.ok(Math.abs(p.needs[need]-(10+gain-decay*(2+duration)/60))<1e-7);
+  advanceWorld(world,start+(3+duration)*minute);assert.ok(p.needs[need]<10+gain);
+ }
+});
+test('una acción de aseo anterior sin progresión conserva su recompensa al acabar',()=>{
+ const start=Date.UTC(2026,0,1,12),world=createWorld({now:start}),p=world.people[0];
+ p.needs.higiene=10;p.action={id:'asearse',label:'aseándose',start:start-600000,until:start,resource:null,route:[],travelMs:0};
+ advanceWorld(world,start+60000);assert.ok(p.needs.higiene>79&&p.needs.higiene<80);
+});

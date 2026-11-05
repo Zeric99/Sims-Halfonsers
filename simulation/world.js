@@ -16,6 +16,7 @@ const definitions={
  esperar:{label:'esperando un camino libre',minutes:3,need:'energia',gain:0,resource:null},
  practicar:{label:'disfrutando de su afición',minutes:30,need:'diversion',gain:25,resource:null},
  ver_tv:{label:'viendo la tele',minutes:40,need:'diversion',gain:25,resource:'sofa'},
+ fumar:{label:'fumando en el jardín',minutes:12,need:'diversion',gain:8,resource:null},
  pasear:{label:'dando un paseo',minutes:15,need:'diversion',gain:12,resource:null},
  dormir:{label:'durmiendo',minutes:480,need:'energia',gain:0,resource:'bed'},
  comer:{label:'comiendo',minutes:25,need:'saciedad',gain:60,resource:'kitchen'},
@@ -40,6 +41,7 @@ function choose(world,p,at){
  const hour=localHour(at,'UTC'),sleepTime=inSleepWindow(hour,p.profile),n=p.needs,options=[];
  for(const [id,a] of Object.entries(definitions)){
   if(id==='charlar'||id==='esperar')continue; // Conversación compartida se incorpora con consentimiento en una fase posterior.
+  if(id==='fumar'&&(!['Catalán','Linkal','May','Mei'].includes(p.name)||at-(p.lastSmokedAt??-Infinity)<3*HOUR||sleepTime||n.energia<25))continue;
   const gym=id==='practicar'&&p.profile.interests.includes('gimnasio');
   const key=gym?'comunidad:gimnasio':a.resource?(p.homeId+':'+a.resource+(['bed','computer'].includes(a.resource)?':'+p.id:'')):null;
   if(key&&world.reservations[key]&&world.reservations[key].until>at)continue;
@@ -56,6 +58,7 @@ function choose(world,p,at){
   if(id==='practicar')score+=.14;
   if(id==='ver_tv')score+=.10;
   if(id==='pasear')score+=.09;
+  if(id==='fumar')score+=.12;
   const others=world.people.filter(other=>other.id!==p.id&&other.action?.id===id).length;
   if(id==='leer'&&others>=2)continue;
   if(!['dormir','comer','charlar'].includes(id))score-=Math.max(0,others-1)*.10;
@@ -69,7 +72,7 @@ function choose(world,p,at){
 }
 const homes={'piso-1':[-10,-7],'piso-2':[10,-7],'piso-3':[-10,7],'piso-4':[10,7]};
 function roomPosition(p){const [cx,cz]=homes[p.homeId];const slot=residents.filter(r=>r.identity.homeId===p.homeId).findIndex(r=>r.identity.id===p.id);return {x:cx-7+Math.max(0,slot)*3.5+2.5,z:cz-6+3.7}}
-function destination(p,id){const [cx,cz]=homes[p.homeId];if(id==='pasear')return {x:0,z:16};if(['dormir','jugar','estudiar'].includes(id))return roomPosition(p);if(['asearse','usar_bano'].includes(id))return {x:cx+.2,z:cz+3.6};if(id==='comer'||id==='limpiar')return {x:cx-1,z:cz+1};return {x:cx+1,z:cz+1}}
+function destination(p,id){const [cx,cz]=homes[p.homeId];if(id==='pasear')return {x:0,z:16};if(id==='fumar'){const index=['Catalán','Linkal','May','Mei'].indexOf(p.name);return {x:-3+index*2,z:17}}if(['dormir','jugar','estudiar'].includes(id))return roomPosition(p);if(['asearse','usar_bano'].includes(id))return {x:cx+.2,z:cz+3.6};if(id==='comer'||id==='limpiar')return {x:cx-1,z:cz+1};return {x:cx+1,z:cz+1}}
 function routeFor(p,to){return findRoute(p.position??roomPosition(p),to)}
 function acceptsInvitation(world,p,other){const tension=p.relationships?.[other.id]?.tension??0;const socialNeed=(100-p.needs.compania)/100;const chance=Math.max(.1,Math.min(.9,.25+.35*p.profile.traits.sociabilidad+.3*socialNeed-tension/200));return random(world)<chance}
 function start(world,p,at,forced=null){
@@ -85,6 +88,7 @@ function start(world,p,at,forced=null){
  p.action={id:selected.id,label,start:at,until,resource:selected.key,route,travelMs};
  if(gym)p.action.activity='gimnasio';
  if(selected.id==='comer')p.action.meal={prepareMs,eatMs:def.minutes*MINUTE};
+ if(['asearse','usar_bano'].includes(selected.id))p.action.care={durationMs:def.minutes*MINUTE};
  if(selected.key)world.reservations[selected.key]={personId:p.id,until};
  event(world,'action_started',p,at,{action:selected.id});
 }
@@ -103,12 +107,13 @@ function finish(world,p,at){
    }
   }
  }
+ if(action.id==='fumar')p.lastSmokedAt=at;
  if(action.id==='comer')world.households[p.homeId].mess=limit(world.households[p.homeId].mess+12);
  if(action.id==='limpiar'){
   const home=world.households[p.homeId];home.mess=limit(home.mess-45);
   event(world,'cleaning_finished',p,at,{homeId:p.homeId,mess:home.mess});
  }
- if(def.gain&&!(action.id==='comer'&&action.meal))p.needs[def.need]=limit(p.needs[def.need]+def.gain);
+ if(def.gain&&!(action.id==='comer'&&action.meal)&&!(['asearse','usar_bano'].includes(action.id)&&action.care))p.needs[def.need]=limit(p.needs[def.need]+def.gain);
  if(action.resource&&world.reservations[action.resource]?.personId===p.id){delete world.reservations[action.resource];if(action.resource.endsWith(':kitchen'))releaseKitchen(world,p,at)}
  const skillByAction={jugar:'juegos',estudiar:'estudio',comer:'cocina',practicar:'aficiones'};
  if(skillByAction[action.id]){
@@ -130,7 +135,7 @@ function positionDuring(action,fallback,at){
 }
 function addressUrgentNeed(world,p,at){
  const old=p.action;
- if(!old||!['practicar','ver_tv','pasear','jugar','estudiar','descansar','leer','esperar','limpiar'].includes(old.id))return false;
+ if(!old||!['practicar','ver_tv','pasear','jugar','estudiar','descansar','leer','esperar','limpiar','fumar'].includes(old.id))return false;
  const critical=p.needs.bano<12?'usar_bano':p.needs.saciedad<10?'comer':p.needs.energia<8?'dormir':null;
  if(!critical)return false;
  const resource=definitions[critical].resource;
@@ -178,11 +183,11 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
   for(const p of world.people)addressUrgentNeed(world,p,at);
   // Una invitación puede interrumpir ocio tranquilo si ambos están disponibles,
   // cerca y han pasado al menos tres horas de juego desde su último encuentro.
-  const canInvite=p=>p.action&&['leer','pasear','ver_tv','descansar'].includes(p.action.id)
+  const canInvite=p=>p.action&&(['leer','pasear','ver_tv','descansar'].includes(p.action.id)||(p.action.id==='practicar'&&p.action.activity!=='gimnasio'))
     &&at-p.action.start>=10*MINUTE&&at>=p.action.start+(p.action.travelMs||0)
     &&p.action.until-at>=5*MINUTE&&at-(p.lastSocialAt??-Infinity)>=3*HOUR;
   for(const a of world.people){
-   if(!canInvite(a)||a.needs.compania>75||random(world)>.025)continue;
+   if(!canInvite(a)||a.needs.compania>75||random(world)>.05)continue;
    const aPos=a.action.route?.at(-1)??a.position;
    const b=world.people.find(q=>q.id!==a.id&&q.homeId===a.homeId&&canInvite(q)
     &&q.action.route?.length&&aPos
@@ -214,6 +219,13 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
     const eatingEnds=Math.min(p.action.until,eatingStarts+meal.eatMs);
     const elapsed=Math.max(0,Math.min(next,eatingEnds)-Math.max(at,eatingStarts));
     if(elapsed)p.needs.saciedad=limit(p.needs.saciedad+definitions.comer.gain*elapsed/meal.eatMs);
+   }
+   // El aseo y el baño solo recuperan la necesidad durante su uso efectivo.
+   const action=p.action,care=action?.care;
+   if(care&&['asearse','usar_bano'].includes(action.id)&&Number.isFinite(care.durationMs)&&care.durationMs>0){
+    const starts=action.start+(action.travelMs||0),ends=Math.min(action.until,starts+care.durationMs);
+    const elapsed=Math.max(0,Math.min(next,ends)-Math.max(at,starts));
+    if(elapsed){const def=definitions[action.id];p.needs[def.need]=limit(p.needs[def.need]+def.gain*elapsed/care.durationMs)}
    }
    p.mood=moodFrom(p);
   }

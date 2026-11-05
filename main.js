@@ -1,3 +1,4 @@
+import { createMii } from './simulation/mii-rig.js';
 import { separatePeople } from './simulation/separation.js';
 import { isWalkable } from './simulation/navigation.js';
 import * as THREE from 'three';
@@ -94,11 +95,7 @@ function setReaction(effect,kind){
 }
 const colors=[0xf08b76,0x6da5c9,0xbb93c7,0xe3b66a,0x84b699,0xd18aaf,0x819bcc,0xe9a37a,0x9dbb71,0xb58dc4,0xd5a264,0x6caeb0,0xca8c82,0xc6a6d6];const people=[];
 const faces={Arian:'arian',Delos:'delos',Lolo:'lolo',Eric:'eric',Adrián:'adrian',Aisuke:'aisuke'};const loader=new THREE.TextureLoader();
-roomPositions.forEach((room,i)=>{const g=new THREE.Group(),avatar=new THREE.Group();g.add(avatar);const gymArms=[];const cloth=mat(colors[i]);let body=new THREE.Mesh(new THREE.CapsuleGeometry(.26,.46,4,10),cloth);body.position.y=.72;avatar.add(body);let head=new THREE.Mesh(new THREE.SphereGeometry(.43,16,12),mat(0xe8b899));head.position.y=1.38;if(!faces[room.name])avatar.add(head);let hair=new THREE.Mesh(new THREE.SphereGeometry(.435,16,12,0,Math.PI*2,0,Math.PI*.48),mat(0x49372e));hair.position.y=1.4;if(!faces[room.name])avatar.add(hair);else {const texture=loader.load('./caras/'+faces[room.name]+'.png',undefined,undefined,()=>{avatar.add(head);avatar.add(hair)});texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=renderer.capabilities.getMaxAnisotropy();const face=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthWrite:false}));face.scale.set(1.15,1.15,1);face.position.set(0,1.48,.1);avatar.add(face)}for(const side of [-1,1]){let eye=new THREE.Mesh(new THREE.SphereGeometry(.035,8,6),mat(0x302b28));eye.position.set(side*.14,1.4,.4);if(!faces[room.name])avatar.add(eye);const shoulder=new THREE.Group();shoulder.position.set(side*.34,.96,0);shoulder.rotation.z=side*.18;avatar.add(shoulder);
-let arm=new THREE.Mesh(new THREE.CapsuleGeometry(.075,.32,4,8),cloth);arm.position.y=-.23;shoulder.add(arm);
-const weight=new THREE.Group();weight.position.set(0,-.48,.02);const steel=mat(0x424e54);
-const bar=new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,.38,10),steel);bar.rotation.z=Math.PI/2;weight.add(bar);
-for(const offset of [-.17,.17]){const disk=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,.075,12),steel);disk.rotation.z=Math.PI/2;disk.position.x=offset;weight.add(disk)}weight.visible=false;shoulder.add(weight);gymArms.push({shoulder,weight});let leg=new THREE.Mesh(new THREE.CapsuleGeometry(.1,.28,4,8),mat(0x515b68));leg.position.set(side*.14,.25,0);avatar.add(leg)}const tagCanvas=document.createElement('canvas');tagCanvas.width=512;tagCanvas.height=128;const tagCtx=tagCanvas.getContext('2d');tagCtx.fillStyle='rgba(255,255,245,.94)';tagCtx.roundRect(10,20,492,88,28);tagCtx.fill();tagCtx.fillStyle='#263e34';tagCtx.font='bold 48px system-ui';tagCtx.textAlign='center';tagCtx.textBaseline='middle';tagCtx.fillText(room.name,256,65);const tag=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(tagCanvas),transparent:true,depthTest:false}));tag.scale.set(1.9,.48,1);tag.position.set(0,2.25,0);tag.renderOrder=2;g.add(tag);scene.add(g);g.position.set(room.x,0,room.z);const bubbleCanvas=document.createElement('canvas');bubbleCanvas.width=512;bubbleCanvas.height=128;const bubbleTexture=new THREE.CanvasTexture(bubbleCanvas);const bubble=new THREE.Sprite(new THREE.SpriteMaterial({map:bubbleTexture,transparent:true,depthTest:false}));bubble.scale.set(3.2,.8,1);bubble.position.set(0,3.1,0);bubble.visible=false;bubble.renderOrder=3;g.add(bubble);const reaction=makeReaction();g.add(reaction.ring,reaction.icon);people.push({g,avatar,tag,gymArms,bed:{x:room.bedX,z:room.bedZ},reaction,bubble,bubbleCanvas,bubbleTexture,bubbleText:'',name:room.name,phase:i*.8,initial:{x:room.x,z:room.z}});});
+roomPositions.forEach((room,i)=>{const g=new THREE.Group(),rig=createMii({color:colors[i],faceUrl:faces[room.name]?'./caras/'+faces[room.name]+'.png':null}),avatar=rig.root;g.add(avatar);const tagCanvas=document.createElement('canvas');tagCanvas.width=512;tagCanvas.height=128;const tagCtx=tagCanvas.getContext('2d');tagCtx.fillStyle='rgba(255,255,245,.94)';tagCtx.roundRect(10,20,492,88,28);tagCtx.fill();tagCtx.fillStyle='#263e34';tagCtx.font='bold 48px system-ui';tagCtx.textAlign='center';tagCtx.textBaseline='middle';tagCtx.fillText(room.name,256,65);const tag=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(tagCanvas),transparent:true,depthTest:false}));tag.scale.set(1.9,.48,1);tag.position.set(0,2.25,0);tag.renderOrder=2;g.add(tag);scene.add(g);g.position.set(room.x,0,room.z);const bubbleCanvas=document.createElement('canvas');bubbleCanvas.width=512;bubbleCanvas.height=128;const bubbleTexture=new THREE.CanvasTexture(bubbleCanvas);const bubble=new THREE.Sprite(new THREE.SpriteMaterial({map:bubbleTexture,transparent:true,depthTest:false}));bubble.scale.set(3.2,.8,1);bubble.position.set(0,3.1,0);bubble.visible=false;bubble.renderOrder=3;g.add(bubble);const reaction=makeReaction();g.add(reaction.ring,reaction.icon);people.push({g,avatar,tag,rig,chair:{x:room.x+.05,z:room.z-1.7},bed:{x:room.bedX,z:room.bedZ},reaction,bubble,bubbleCanvas,bubbleTexture,bubbleText:'',name:room.name,phase:i*.8,initial:{x:room.x,z:room.z}});});
 // Una pulsación breve selecciona; arrastrar sigue controlando la cámara.
 const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();let press=null;
 renderer.domElement.addEventListener('pointerdown',e=>{press=e.button===0?{x:e.clientX,y:e.clientY,id:e.pointerId}:null});
@@ -139,7 +136,8 @@ function positionAt(action,fallback,now){
  return route[route.length-1];
 }
 function resize(){const w=root.clientWidth,h=root.clientHeight;renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1,2.5));renderer.setSize(w,h);const aspect=w/h;camera.left=-18*aspect;camera.right=18*aspect;camera.top=18;camera.bottom=-18;camera.updateProjectionMatrix()}window.addEventListener('resize',resize);resize();
-function animate(t){requestAnimationFrame(animate);if(snapshot){const byName=new Map(snapshot.people.map(p=>[p.name,p]));const now=clockBase+(performance.now()-receivedAt)*clockRate;const hour=new Date(now).getUTCHours(),night=hour<7||hour>=23;scene.background.setHex(night?0x253952:0xb8d99c);ambient.intensity=night?.8:2;sun.intensity=night?.65:2;const placements=[];for(const p of people){const state=byName.get(p.name);if(!state)continue;
+let lastFrame=0;
+function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?Math.min(.05,(t-lastFrame)/1000):0;lastFrame=t;if(snapshot){const byName=new Map(snapshot.people.map(p=>[p.name,p]));const now=clockBase+(performance.now()-receivedAt)*clockRate;const hour=new Date(now).getUTCHours(),night=hour<7||hour>=23;scene.background.setHex(night?0x253952:0xb8d99c);ambient.intensity=night?.8:2;sun.intensity=night?.65:2;const placements=[];for(const p of people){const state=byName.get(p.name);if(!state)continue;
  const latest=reactions.get(state.id),age=latest?now-latest.at:Infinity;
  const signal=latest&&age>=0&&age<clockRate*10000?latest.kind:(state.action?.id==='dormir'&&now>=state.action.start+(state.action.travelMs||0)?'sleep':null);
  setReaction(p.reaction,signal);
@@ -149,17 +147,31 @@ function animate(t){requestAnimationFrame(animate);if(snapshot){const byName=new
  const action=state.action,awake=action&&action.id!=='dormir';
  const arrived=action&&now>=action.start+(action.travelMs||0);
  const training=action?.activity==='gimnasio'&&arrived;
- const cycle=awake&&arrived&&!training?(((now-action.start)/clockRate+p.phase*1000)%16000)/16000:0;
+ const seated=arrived&&['jugar','estudiar'].includes(action?.id); 
+ const cycle=awake&&arrived&&!seated&&!training&&!['comer','fumar'].includes(action.id)?(((now-action.start)/clockRate+p.phase*1000)%16000)/16000:0;
  const excursion=cycle<.25?cycle*4:cycle<.5?2-cycle*4:0;
  const sway=awake&&arrived?excursion*.5:0;
  // La postura sigue el momento de llegada calculado por el servidor.
  const sleeping=action?.id==='dormir'&&arrived;
  const lie=sleeping?Math.max(0,Math.min(1,(now-(action.start+(action.travelMs||0)))/(clockRate*2000))):0;
- const x=where.x+(p.bed.x-where.x)*lie+sway,z=where.z+(p.bed.z-where.z)*lie;
- const bob=where.walking?Math.abs(Math.sin(now*.008/clockRate+p.phase))*.055:awake?Math.abs(Math.sin(now*.005/clockRate+p.phase))*.025:0;
- placements.push({p,x,z,bob,fixed:!!sleeping});
- if(sleeping)p.g.rotation.y=0;else if(where.angle!==undefined)p.g.rotation.y=where.angle;else if(sway>0)p.g.rotation.y=cycle<.25?Math.PI/2:-Math.PI/2;
- for(const arm of p.gymArms){arm.weight.visible=!!training;const target=training?-.35-.85*(.5-.5*Math.cos((now-action.start)/clockRate*.004)):0;arm.shoulder.rotation.x+=(target-arm.shoulder.rotation.x)*.15}
- p.avatar.position.set(0,.72*lie,.62*lie);p.avatar.rotation.x=-Math.PI/2*lie}
- for(const spot of separatePeople(placements,isWalkable))spot.p.g.position.set(spot.x,spot.bob,spot.z);
+ const seatBlend=seated?Math.max(0,Math.min(1,(now-(action.start+(action.travelMs||0)))/(clockRate*1200))):0;
+ const x=where.x+(p.bed.x-where.x)*lie+(p.chair.x-where.x)*seatBlend+sway,z=where.z+(p.bed.z-where.z)*lie+(p.chair.z-where.z)*seatBlend;
+ const bob=0;
+ placements.push({p,x,z,bob,fixed:!!sleeping||!!seated,walking:!!where.walking});
+ if(sleeping)p.g.rotation.y=0;else if(seated)p.g.rotation.y=Math.PI;else if(where.angle!==undefined)p.g.rotation.y=where.angle;else if(sway>0)p.g.rotation.y=cycle<.25?Math.PI/2:-Math.PI/2;
+ p.avatar.position.set(0,.72*lie-.18*seatBlend,.62*lie);p.avatar.rotation.x=-Math.PI/2*lie;
+ const eating=action?.id==='comer'&&arrived&&now>=action.start+(action.travelMs||0)+(action.meal?.prepareMs||0);
+ const anim=sleeping?'idle':where.walking?'walk':training?'gym':action?.id==='fumar'&&arrived?'smoke':seated?(action.id==='estudiar'?'study':'computer'):eating?'eatStanding':'idle';
+ p.rig.play(anim);
+
+ }
+ for(const spot of separatePeople(placements,isWalkable)){
+  const p=spot.p,previous=p.previousRendered;
+  const distance=previous?Math.hypot(spot.x-previous.x,spot.z-previous.z):0;
+  const speed=frameSeconds>0?Math.min(1.5,distance/frameSeconds):0;
+  p.rig.mixer.timeScale=spot.walking?speed/.55:1;
+  p.rig.mixer.update(frameSeconds);
+  p.g.position.set(spot.x,spot.bob,spot.z);
+  p.previousRendered={x:spot.x,z:spot.z};
+ }
  }controls.update();renderer.render(scene,camera)}requestAnimationFrame(animate);

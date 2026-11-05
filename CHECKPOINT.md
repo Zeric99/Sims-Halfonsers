@@ -22,6 +22,7 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 - [ ] Convivencia completa: hay conversaciones, relaciones y un conflicto básico por turnos de cocina; faltan causas y planes más variados y validación integral del romance. Este trabajo corresponde a la fase 2 y no está terminado.
 
 ## Preparación para la fase 1
+- En la copia local se han combinado las ramas de personajes, gimnasio y fichas. Las 39 pruebas automáticas pasan; se ha comprobado que la escena carga, el clic abre una ficha y dos pestañas ven el mismo mundo de prueba. El servidor local usa memoria temporal y no verifica Neon ni el chat real.
 - [x] Repositorio original conectado a Vercel y estado compartido en Neon.
 - [x] Perfiles independientes por mundo, para que una simulación no modifique los valores iniciales de otra.
 - [x] Pruebas ejecutables con `npm test` y flujo de GitHub Actions para cambios en main y pull requests.
@@ -31,7 +32,7 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 ## Fase 1: motor doméstico
 - [ ] Separar identidad, perfil, estado y aprendizaje; validar esquema y migraciones.
 - [ ] Reloj ficticio compartido: ciclo de 20 minutos de día y 10 de noche; falta ampliar las pruebas y el reloj inyectable.
-- [ ] Necesidades por tiempo, comida, sueño con histéresis, higiene, compañía y diversión; la saciedad sube gradualmente al comer y el baño es una necesidad con recurso compartido. Se ha añadido una primera histéresis para evitar despertares prematuros y volver a acostarse con energía alta; faltan calibración y animaciones.
+- [ ] Necesidades por tiempo, comida, sueño con histéresis, higiene, compañía y diversión; la saciedad sube gradualmente al comer y el baño es una necesidad con recurso compartido. En la rama de prueba, aseo y baño recuperan sus necesidades gradualmente tras el trayecto, manteniendo compatibilidad con acciones antiguas. Se ha añadido una primera histéresis para evitar despertares prematuros y volver a acostarse con energía alta; faltan calibración y animaciones.
 - [ ] Acciones con precondiciones, utilidad, duraciones, interrupciones y resultados únicos. El trayecto ya no consume el tiempo de actividad y dormir no recupera energía antes de llegar; el ocio puede interrumpirse por hambre, sueño o baño críticos cuando el recurso está disponible, liberando la reserva sin dar la recompensa; quedan precondiciones e interrupciones más completas.
 - [ ] Recursos con capacidad, reservas, vencimiento y alternativas. La reserva dura todo el trayecto y la actividad; quedan capacidades y alternativas más generales.
 - [ ] Habitaciones, puertas y rutas válidas sin atravesar muebles; estados de ejecución.
@@ -61,3 +62,7 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 
 ## Fuera de alcance por ahora
 Cuentas y formulario completo, edición visual avanzada, IA generativa obligatoria, economía, envejecimiento, exteriores, empleo y mudanzas.
+
+## Cambios preparados en la rama de prueba
+- Modelos articulados y accesorios de actividades; pausas de fumar en el jardín para Catalán, Linkal, May y Mei; aseo y baño con recuperación gradual.
+- Pendiente: verificar visualmente todas las animaciones y el despliegue antes de incorporarlas a producción. Vercel indicó que se había alcanzado su límite diario de despliegues. No presentar la rama como publicada.
