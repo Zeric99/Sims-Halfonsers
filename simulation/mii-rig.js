@@ -35,6 +35,7 @@ export function createMii({color=0x648cc4,faceUrl=null}={}){
   ]),
   clip('sit',[['leftHip',sitting],['rightHip',sitting],['leftKnee',knees],['rightKnee',knees]]),
   clip('eat',[['leftHip',sitting],['rightHip',sitting],['leftKnee',knees],['rightKnee',knees],['rightShoulder',[-.6,-.8,-.6,-.35,-.6]],['rightElbow',[-.8,-1.45,-.8,-.4,-.8]]]),
+  clip('eatStanding',[['rightShoulder',[-.4,-.9,-.4,-.2,-.4]],['rightElbow',[-.4,-1.35,-.4,-.2,-.4]]]),
   clip('study',[['leftHip',sitting],['rightHip',sitting],['leftKnee',knees],['rightKnee',knees],['leftShoulder',[-.7,-.7,-.7,-.7,-.7]],['rightShoulder',[-.7,-.76,-.7,-.64,-.7]],['rightElbow',[-.5,-.65,-.5,-.35,-.5]],['head',[.12,.14,.12,.10,.12]]]),
   clip('computer',[['leftHip',sitting],['rightHip',sitting],['leftKnee',knees],['rightKnee',knees],['leftShoulder',[-.75,-.8,-.75,-.7,-.75]],['rightShoulder',[-.75,-.7,-.75,-.8,-.75]],['leftElbow',[-.65,-.55,-.65,-.75,-.65]],['rightElbow',[-.65,-.75,-.65,-.55,-.65]]])
  ];
