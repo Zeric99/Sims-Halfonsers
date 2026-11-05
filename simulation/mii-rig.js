@@ -10,7 +10,7 @@ export function createMii({color=0x648cc4,faceUrl=null}={}){
  const head=part(torso,'head',0,.78,0);
  const sphere=new THREE.Mesh(new THREE.SphereGeometry(.43,24,16),skin);head.add(sphere);
  if(faceUrl){new THREE.TextureLoader().load(faceUrl,texture=>{texture.colorSpace=THREE.SRGBColorSpace;const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthWrite:false,depthTest:false}));sprite.scale.set(1.15,1.15,1);sprite.position.z=.12;head.add(sprite);sphere.visible=false})}
- else {const hair=new THREE.Mesh(new THREE.SphereGeometry(.435,24,16,0,Math.PI*2,0,Math.PI*.48),new THREE.MeshStandardMaterial({color:0x49372e}));hair.position.y=.02;head.add(hair)}
+ else {const hair=new THREE.Mesh(new THREE.SphereGeometry(.435,24,16,0,Math.PI*2,0,Math.PI*.48),new THREE.MeshStandardMaterial({color:0x49372e}));hair.position.y=.02;head.add(hair);for(const x of [-.14,.14]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.035,8,6),new THREE.MeshStandardMaterial({color:0x302b28}));eye.position.set(x,0,.4);head.add(eye)}}
  for(const [side,label] of [[-1,'left'],[1,'right']]){
   const shoulder=part(torso,label+'Shoulder',side*.32,.18,0);
   capsule(shoulder,.075,.20,shirt,0,-.16,0);
