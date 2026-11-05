@@ -44,6 +44,8 @@ function choose(world,p,at){
   if(key&&world.reservations[key]&&world.reservations[key].until>at)continue;
   const mess=world.households[p.homeId]?.mess??0;
   if(id==='limpiar'&&mess<20)continue;
+  // Evitar volver a acostarse nada más despertarse con energía suficiente.
+  if(id==='dormir'&&n.energia>=(sleepTime?85:35))continue;
   let score=id==='limpiar'?(.08+mess/100*(.55+.25*(p.profile.traits.orden??.5))):urgency(n[a.need])*.65;
   if(id==='dormir')score+=sleepTime?.55:-.15;
   if(id==='comer'&&[8,9,13,14,20,21].includes(hour))score+=.18;
@@ -168,7 +170,7 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
  while(world.lastSimulatedAt<end){
   const at=world.lastSimulatedAt,step=Math.min(MINUTE,end-at),next=at+step;
   coolConflicts(world,at);
-  for(const p of world.people)if(p.action&&(p.action.until<=at||(p.action.id==='dormir'&&at>=p.action.start+(p.action.travelMs||0)&&p.needs.energia>=60&&!inSleepWindow(localHour(at,'UTC'),p.profile))))finish(world,p,at);
+  for(const p of world.people)if(p.action&&(p.action.until<=at||(p.action.id==='dormir'&&at>=p.action.start+(p.action.travelMs||0)&&at>=p.action.start+(p.action.travelMs||0)+4*HOUR&&p.needs.energia>=80&&!inSleepWindow(localHour(at,'UTC'),p.profile))))finish(world,p,at);
   for(const p of world.people)addressUrgentNeed(world,p,at);
   // Una invitación puede interrumpir ocio tranquilo si ambos están disponibles,
   // cerca y han pasado al menos tres horas de juego desde su último encuentro.
