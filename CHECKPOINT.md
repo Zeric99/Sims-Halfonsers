@@ -6,7 +6,7 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 - Solo vida doméstica; sin empleos exteriores, centro comercial ni mudanzas.
 - Simulación compartida en Vercel y Neon. Los visitantes observan.
 - Sin visitantes durante más de 90 segundos no se generan sucesos ni cambios sociales. Al regresar se presupone vida cotidiana, se conservan relaciones y recuerdos y se inicia en habitaciones.
-- Reloj ficticio compartido: 20 minutos reales de día (07:00–23:00 del juego) y 10 de noche. La hora sigue el ciclo al volver, pero no se inventan sucesos sociales durante la ausencia.
+- Reloj ficticio compartido: 29 minutos reales de día (07:00–23:00 del juego) y 1 de noche. La hora sigue el ciclo al volver, pero no se inventan sucesos sociales durante la ausencia.
 - No usar almacenamiento local como estado canónico. El código se actualiza directamente en GitHub.
 
 ## Estado comprobado
@@ -22,7 +22,7 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 - [ ] Convivencia completa: hay conversaciones, relaciones y un conflicto básico por turnos de cocina; faltan causas y planes más variados y validación integral del romance. Este trabajo corresponde a la fase 2 y no está terminado.
 
 ## Preparación para la fase 1
-- En la copia local se han combinado las ramas de personajes, gimnasio y fichas. Las 47 pruebas automáticas pasan; se ha comprobado que la escena carga, el clic abre una ficha y dos pestañas ven el mismo mundo de prueba. El servidor local usa memoria temporal y no verifica Neon ni el chat real.
+- Las ramas de personajes, gimnasio y fichas están integradas y publicadas en producción. La batería contiene 64 pruebas; dos pestañas de producción mostraron el mismo diario y un cliente recuperó el estado al recargar. El servidor local usa memoria temporal y no verifica Neon ni el envío real del chat.
 - [x] Repositorio original conectado a Vercel y estado compartido en Neon.
 - [x] Perfiles independientes por mundo, para que una simulación no modifique los valores iniciales de otra.
 - [x] Pruebas ejecutables con `npm test` y flujo de GitHub Actions para cambios en main y pull requests.
@@ -30,11 +30,11 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 - La fase 1 ya se ha comenzado; los puntos siguientes son trabajo pendiente, no requisitos previos bloqueantes.
 
 ## Fase 1: motor doméstico
-- [ ] Separar identidad, perfil, estado y aprendizaje; validar esquema y migraciones. La envoltura del mundo ahora rechaza versiones futuras, IDs duplicados y metadatos inválidos antes de avanzar; falta completar la separación y validación de todos los campos.
-- [x] Reloj ficticio compartido: ciclo de 20 minutos de día y 10 de noche. Tiene reloj inyectable y pruebas de ambos límites; cambios probados en local, pendientes de despliegue.
+- [ ] Separar identidad, perfil, estado y aprendizaje; validar esquema y migraciones. La envoltura rechaza versiones futuras, IDs duplicados y metadatos inválidos. En local también valida necesidades, posiciones y acciones antes de mutar el mundo y conserva la migración de versiones antiguas sin baño; falta completar la separación y validar los demás campos.
+- [x] Reloj ficticio compartido: ciclo de 29 minutos de día y 1 de noche. El cambio y la migración sin saltos tienen pruebas automatizadas; comprobar el despliegue y la migración en producción.
 - [ ] Necesidades por tiempo, comida, sueño con histéresis, higiene, compañía y diversión; la saciedad sube gradualmente al comer y el baño es una necesidad con recurso compartido. En la rama de prueba, aseo y baño recuperan sus necesidades gradualmente tras el trayecto, manteniendo compatibilidad con acciones antiguas. Se ha añadido una primera histéresis para evitar despertares prematuros y volver a acostarse con energía alta; faltan calibración y animaciones.
 - [ ] Acciones con precondiciones, utilidad, duraciones, interrupciones y resultados únicos. El trayecto ya no consume el tiempo de actividad y dormir no recupera energía antes de llegar; el ocio puede interrumpirse por hambre, sueño o baño críticos cuando el recurso está disponible, liberando la reserva sin dar la recompensa; quedan precondiciones e interrupciones más completas.
-- [ ] Recursos con capacidad, reservas, vencimiento y alternativas. La reserva dura todo el trayecto y la actividad; quedan capacidades y alternativas más generales.
+- [ ] Recursos con capacidad, reservas, vencimiento y alternativas. La reserva dura todo el trayecto y la actividad. En local se liberan reservas huérfanas y se repara el vencimiento de las acciones activas. Si el gimnasio está ocupado, se puede escoger otra afición del perfil; quedan capacidades y alternativas más generales.
 - [ ] Habitaciones, puertas y rutas válidas sin atravesar muebles; estados de ejecución. La ficha distingue en camino, esperando, durmiendo y realizando una actividad; falta comprobar visualmente las rutas y su interacción con los muebles.
 - [ ] Cocina/comida, ocio, estudio, ordenador, descanso y limpieza. Implementadas acciones iniciales de comida, sueño, aseo, estudio y ocio; la cocina acumula desorden tras las comidas y puede limpiarse con reserva. La comida ahora recorre nevera, fogones y mesa con saciedad gradual y asiento; queda revisar visualmente las transiciones y añadir recetas y otras tareas.
 - [ ] Estado canónico transaccional, control de concurrencia y eventos idempotentes.
@@ -63,6 +63,10 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 ## Fuera de alcance por ahora
 Cuentas y formulario completo, edición visual avanzada, IA generativa obligatoria, economía, envejecimiento, exteriores, empleo y mudanzas.
 
-## Cambios preparados en la rama de prueba
-- Modelos articulados y accesorios de actividades; pausas de fumar en el jardín para Catalán, Linkal, May y Mei; aseo y baño con recuperación gradual.
-- Pendiente: verificar visualmente todas las animaciones y el despliegue antes de incorporarlas a producción. Vercel indicó que se había alcanzado su límite diario de despliegues. No presentar la rama como publicada.
+## Últimos avances preparados para producción
+- Validación previa de posiciones, trayectos y acciones; una entrada dañada no modifica parcialmente a los demás vecinos. Pendiente ampliar la validación de etapas de comida y otros campos.
+- Ciclo actualizado a 29 minutos de día y 1 de noche; reloj compartido y migración probados, pendiente de comprobación en producción.
+- Alternativa de afición para vecinos cuyo gimnasio esté ocupado; probada mediante pruebas automatizadas.
+- Recuperación de reservas huérfanas y reparación del vencimiento durante acciones activas; verificado mediante pruebas automatizadas.
+- Validación temprana de las necesidades de todos los vecinos, con pruebas que garantizan que un dato corrupto no modifica parcialmente el mundo y que los estados antiguos sin necesidad de baño siguen migrando.
+- La web, los modelos articulados, las frases compartidas y las animaciones están publicados en Vercel. El nuevo ciclo, el salseómetro y los ajustes de validación y reservas se incluyen en este despliegue; falta comprobarlos en producción.

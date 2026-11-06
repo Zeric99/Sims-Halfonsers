@@ -1,4 +1,5 @@
 // Núcleo determinista independiente de la representación y del alojamiento.
+import { DAY_RATE } from './clock.js';
 import { residents } from './profiles.js';
 import { advanceNeeds, urgency } from './needs.js';
 import { openConversation, finishConversation } from './social.js';
@@ -44,7 +45,13 @@ function choose(world,p,at){
  for(const [id,a] of Object.entries(definitions)){
   if(id==='charlar'||id==='esperar')continue; // Conversación compartida se incorpora con consentimiento en una fase posterior.
   if(id==='fumar'&&(!['Catalán','Linkal','May','Mei'].includes(p.name)||at-(p.lastSmokedAt??-Infinity)<3*HOUR||sleepTime||n.energia<25))continue;
-  const gym=id==='practicar'&&p.profile.interests.includes('gimnasio');
+  let gym=id==='practicar'&&p.profile.interests.includes('gimnasio');
+  let hobby=null;
+  if(gym&&world.reservations['comunidad:gimnasio']?.until>at){
+   hobby=p.profile.interests.find(interest=>interest!=='gimnasio')||null;
+   if(!hobby)continue;
+   gym=false;
+  }
   const key=gym?'comunidad:gimnasio':a.resource?(p.homeId+':'+a.resource+(['bed','computer'].includes(a.resource)?':'+p.id:'')):null;
   if(key&&world.reservations[key]&&world.reservations[key].until>at)continue;
   const mess=world.households[p.homeId]?.mess??0;
@@ -67,7 +74,7 @@ function choose(world,p,at){
   score+=preferenceBonus(p,id);
   if(p.lastAction===id)score-=.16;
   if(n.energia<20&&id!=='dormir')score-=.4;
-  options.push({id,key,score:score+random(world)*.04});
+  options.push({id,key,hobby,score:score+random(world)*.04});
  }
  options.sort((a,b)=>b.score-a.score);
  return options[0];
@@ -78,7 +85,7 @@ function destination(p,id){const [cx,cz]=homes[p.homeId];if(id==='pasear')return
 function routeFor(p,to){return findRoute(p.position??roomPosition(p),to)}
 function planMeal(p,at){
  const [cx,cz]=homes[p.homeId],stages=[];let cursor=at,position=p.position??roomPosition(p);
- const walk=(kind,target)=>{const route=findRoute(position,target);if(!route.length)return false;let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const duration=Math.round(length*1500*48);stages.push({kind,start:cursor,end:cursor+duration,route});cursor+=duration;position=route.at(-1);return true};
+ const walk=(kind,target)=>{const route=findRoute(position,target);if(!route.length)return false;let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const duration=Math.round(length*1500*DAY_RATE);stages.push({kind,start:cursor,end:cursor+duration,route});cursor+=duration;position=route.at(-1);return true};
  const pause=(kind,duration)=>{stages.push({kind,start:cursor,end:cursor+duration,route:[position]});cursor+=duration};
  if(!walk('to_fridge',{x:cx+1.3,z:cz+4.35}))return null;
  pause('fridge',MINUTE);
@@ -94,12 +101,12 @@ function start(world,p,at,forced=null){
  if(p.needs.saciedad<50&&kitchen&&kitchen.until>at&&kitchen.personId!==p.id){const occupant=world.people.find(q=>q.id===kitchen.personId);if(occupant)recordKitchenWait(world,p,occupant,at)}
  const selected=forced??choose(world,p,at);if(!selected)return;
  const def=definitions[selected.id];
- const gym=selected.id==='practicar'&&p.profile.interests.includes('gimnasio');
+ const gym=selected.id==='practicar'&&selected.key==='comunidad:gimnasio';
  const meal=selected.id==='comer'?planMeal(p,at):null;
  const route=selected.id==='comer'?(meal?.stages[0].route??[]):routeFor(p,gym?{x:9,z:17}:destination(p,selected.id));
  if(!route.length){const pos=p.position??roomPosition(p);p.action={id:'esperar',label:definitions.esperar.label,start:at,until:at+3*MINUTE,resource:null,route:[pos],travelMs:0};event(world,'route_blocked',p,at,{action:selected.id});return}
- let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const travelMs=Math.round(length*1500*48),until=meal?.until??(at+travelMs+def.minutes*MINUTE);
- const hobby=p.profile.interests[0];const label=gym?'levantando pesas en el gimnasio comunitario':selected.id==='practicar'&&hobby?'disfrutando de '+hobby:def.label;
+ let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const travelMs=Math.round(length*1500*DAY_RATE),until=meal?.until??(at+travelMs+def.minutes*MINUTE);
+ const hobby=selected.hobby||p.profile.interests[0];const label=gym?'levantando pesas en el gimnasio comunitario':selected.id==='practicar'&&hobby?'disfrutando de '+hobby:def.label;
  p.action={id:selected.id,label,start:at,until,resource:selected.key,route,travelMs};
  if(gym)p.action.activity='gimnasio';
  if(meal)p.action.meal=meal;
@@ -197,6 +204,13 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
   const at=world.lastSimulatedAt,step=Math.min(MINUTE,end-at),next=at+step;
   coolConflicts(world,at);
   for(const p of world.people)if(p.action&&(p.action.until<=at||(p.action.id==='dormir'&&at>=p.action.start+(p.action.travelMs||0)&&at>=p.action.start+(p.action.travelMs||0)+4*HOUR&&p.needs.energia>=80&&!inSleepWindow(localHour(at,'UTC'),p.profile))))finish(world,p,at);
+  // Una reserva solo es válida mientras su dueño siga usando ese recurso.
+  // Si la acción continúa, reparar su vencimiento evita reservas simultáneas.
+  for(const [key,reservation] of Object.entries(world.reservations)){
+   const owner=world.people.find(p=>p.id===reservation?.personId),action=owner?.action;
+   if(!action||action.resource!==key||!Number.isFinite(action.until)||action.until<=at)delete world.reservations[key];
+   else reservation.until=action.until;
+  }
   for(const p of world.people)addressUrgentNeed(world,p,at);
   // Una invitación puede interrumpir ocio tranquilo si ambos están disponibles,
   // cerca y han pasado al menos tres horas de juego desde su último encuentro.

@@ -148,6 +148,7 @@ test('una necesidad urgente espera si el recurso está ocupado',()=>{
  p.position={x:-8,z:-6};p.needs.bano=5;
  p.action={id:'leer',label:'leyendo',start,until:start+60*60000,resource:null,route:[p.position],travelMs:0};
  world.reservations[p.homeId+':bathroom']={personId:other.id,until:start+30*60000};
+ other.action={id:'asearse',label:'aseándose',start,until:start+30*60000,resource:p.homeId+':bathroom',route:[p.position],travelMs:0};
  advanceWorld(world,start+60000);
  assert.equal(p.action.id,'leer');assert.equal(world.reservations[p.homeId+':bathroom'].personId,other.id);
 });
@@ -317,4 +318,27 @@ test('una acción de aseo anterior sin progresión conserva su recompensa al aca
  const start=Date.UTC(2026,0,1,12),world=createWorld({now:start}),p=world.people[0];
  p.needs.higiene=10;p.action={id:'asearse',label:'aseándose',start:start-600000,until:start,resource:null,route:[],travelMs:0};
  advanceWorld(world,start+60000);assert.ok(p.needs.higiene>79&&p.needs.higiene<80);
+});
+test('recupera reservas huérfanas y repara el plazo de una acción activa',()=>{
+ const start=Date.UTC(2026,0,1,12),world=createWorld({now:start}),[p,other]=world.people;
+ for(const person of world.people){person.needs={saciedad:90,energia:90,higiene:90,compania:90,diversion:90,bano:90};person.action={id:'leer',label:'leyendo',start,until:start+3600000,resource:null,route:[],travelMs:0}}
+ const gym='comunidad:gimnasio',bath=p.homeId+':bathroom',kitchen=p.homeId+':kitchen';
+ world.reservations[bath]={personId:p.id,until:start+3600000};
+ world.reservations[kitchen]={personId:'inexistente',until:start+3600000};
+ other.action={id:'practicar',activity:'gimnasio',label:'pesas',start,until:start+1200000,resource:gym,route:[],travelMs:0};
+ world.reservations[gym]={personId:other.id,until:start-1};
+ advanceWorld(world,start+60000);
+ assert.equal(world.reservations[bath],undefined);assert.equal(world.reservations[kitchen],undefined);
+ assert.equal(world.reservations[gym].personId,other.id);assert.equal(world.reservations[gym].until,other.action.until);
+});
+test('si el gimnasio está ocupado puede practicar otra afición sin reservarlo',()=>{
+ const start=Date.UTC(2026,0,1,12),world=createWorld({seed:12,now:start});
+ const p=world.people.find(person=>person.name==='Linkal'),holder=world.people.find(person=>person.name==='Yaiza');
+ for(const person of world.people){person.needs={saciedad:100,energia:100,higiene:100,compania:100,diversion:100,bano:100};person.action={id:'leer',label:'leyendo',start,until:start+3600000,resource:null,route:[],travelMs:0}}
+ p.action=null;p.needs.diversion=0;
+ holder.action={id:'practicar',activity:'gimnasio',label:'pesas',start,until:start+3600000,resource:'comunidad:gimnasio',route:[],travelMs:0};
+ world.reservations['comunidad:gimnasio']={personId:holder.id,until:holder.action.until};
+ advanceWorld(world,start+60000);
+ assert.equal(p.action.id,'practicar');assert.equal(p.action.activity,undefined);assert.match(p.action.label,/política/);assert.equal(p.action.resource,null);
+ assert.equal(world.reservations['comunidad:gimnasio'].personId,holder.id);
 });

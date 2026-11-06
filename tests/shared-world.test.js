@@ -56,3 +56,11 @@ test('volver tras una ausencia no inventa sucesos sociales ni borra relaciones',
  assert.ok(!result.world.events.some(e=>['conversation_started','conversation_finished','kitchen_wait'].includes(e.type)));
  assert.equal(result.world.lastObservedAt,later);
 });
+test('migra el reloj anterior sin saltos ni pérdida de relaciones',async()=>{
+ const wall=1700000000000,game=Date.UTC(2026,0,1,12),initial=createWorld({now:game});
+ initial.simulationClock={realAnchor:wall,gameAnchor:game,rate:48};initial.lastObservedAt=wall;
+ initial.people[0].relationships[initial.people[1].id]={friendship:42,trust:20,tension:0};
+ const db=store(initial),result=await advanceSharedWorld({read:db.read,write:db.write,now:()=>wall+1000});
+ assert.equal(result.world.simulationClock.mode,'cycle29');assert.equal(result.serverTime,game+48000);
+ assert.equal(result.world.people[0].relationships[initial.people[1].id].friendship,42);
+});

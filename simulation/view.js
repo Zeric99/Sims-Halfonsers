@@ -1,3 +1,4 @@
+import { neighbourhoodHighlights } from './highlights.js';
 import { describeResident } from './resident-details.js';
 const panel=document.querySelector('#resident-panel'),details=document.querySelector('#resident-details'),residentTitle=document.querySelector('#resident-title');
 let selectedResident=null;
@@ -34,6 +35,25 @@ async function refresh(){
   const date=new Intl.DateTimeFormat('es-ES',{timeZone:'UTC',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(world.lastSimulatedAt);
   const hour=new Date(world.lastSimulatedAt).getUTCHours();
   clock.textContent=(hour>=7&&hour<23?'☀ Día':'🌙 Noche')+' · '+date+' · ciclo de 30 minutos';
+  const gossip=document.querySelector('#gossip-highlights');
+  if(gossip){const wasOpen=Boolean(gossip.querySelector('details')?.open),stats=neighbourhoodHighlights(world),cards=document.createDocumentFragment();
+   for(const [icon,title,entry,unit,empty] of [['✦','MEJOR ROLLO',stats.friendship,'amistad','Todavía no hay amistades registradas.'],['⚡','TENSIÓN',stats.tension,'tensión','Por ahora, reina la paz.']]){
+    const row=document.createElement('div'),badge=document.createElement('span'),body=document.createElement('div'),label=document.createElement('small'),value=document.createElement('strong'),detail=document.createElement('span');
+    row.className='gossip-row';badge.className='gossip-badge';badge.textContent=icon;label.textContent=title;
+    value.textContent=entry?entry.from+' → '+entry.to:empty;detail.textContent=entry?Math.round(entry[unit==='amistad'?'friendship':'tension'])+' de '+unit:'';
+    body.append(label,value,detail);row.append(badge,body);cards.append(row);
+   }
+   const chatter=document.createElement('div'),label=document.createElement('small'),value=document.createElement('strong'),note=document.createElement('span');
+   chatter.className='gossip-chatter';label.textContent='💬 QUIÉN MÁS CHARLA';value.textContent=stats.chatter?stats.chatter.name:'Aún no hay conversaciones terminadas';note.textContent=stats.chatter?stats.chatter.count+' conversaciones del historial reciente':'';chatter.append(label,value,note);cards.append(chatter);
+   const ranking=document.createElement('details'),summary=document.createElement('summary'),hint=document.createElement('p');ranking.className='gossip-rankings';ranking.open=wasOpen;summary.textContent='Ver el ranking del barrio';hint.textContent='La flecha muestra cómo se siente el primero hacia el segundo.';ranking.append(summary,hint);
+   for(const [title,key,entries] of [['Más amistad','friendship',stats.friendshipRanking],['Más tensión','tension',stats.tensionRanking]]){
+    const heading=document.createElement('strong'),ordered=document.createElement('ol');heading.textContent=title;ranking.append(heading);
+    if(!entries.length){const empty=document.createElement('p');empty.textContent='Todavía no hay datos.';ranking.append(empty)}
+    for(const entry of entries){const item=document.createElement('li');item.textContent=entry.from+' → '+entry.to+' · '+Math.round(entry[key]);ordered.append(item)}
+    ranking.append(ordered);
+   }
+   cards.append(ranking);gossip.replaceChildren(cards);
+  }
   const fragment=document.createDocumentFragment(),names=new Map(world.people.map(p=>[p.id,p.name]));
   const open=new Set([...list.querySelectorAll('details[open]')].map(item=>item.dataset.personId));
   const labels={saciedad:'Saciedad',energia:'Energía',higiene:'Higiene',compania:'Compañía',diversion:'Diversión',bano:'Baño'};
