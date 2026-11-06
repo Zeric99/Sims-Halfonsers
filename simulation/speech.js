@@ -4,5 +4,14 @@ export function speechAt(conversation,personId,now){
  const participants=conversation.participants||[];if(participants.length!==2)return '';
  const turn=Math.floor((now-conversation.start)/(8*60000))%2;
  if(participants[turn]!==personId)return '';
- return conversation.lines?.[personId]||(turn===0?'¿Hablamos de '+conversation.topic+'?':'¡Claro, cuéntame!');
+ if(conversation.lines?.[personId])return conversation.lines[personId];
+ const topic=conversation.topic||'el día';
+ const dialogues=[
+  ['¿Qué tal te va con '+topic+'?','¡Bastante bien! ¿Y a ti?'],
+  ['Oye, ¿qué opinas de '+topic+'?','Pues me interesa, cuéntame más.'],
+  ['El otro día me acordé de '+topic+'.','¿Ah, sí? ¿Qué pasó?'],
+  ['Tenemos que hablar de '+topic+'.','¡Claro! Te escucho.']
+ ];
+ let hash=0;for(const ch of String(conversation.id||''))hash=(Math.imul(hash,31)+ch.charCodeAt(0))>>>0;
+ return dialogues[hash%dialogues.length][turn];
 }
