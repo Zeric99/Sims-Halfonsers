@@ -8,7 +8,7 @@ async function refresh(){
   const mode=document.querySelector('#chat-mode');if(mode){mode.hidden=data.mode!=='prueba_local_temporal';mode.textContent=mode.hidden?'':'Prueba local: mensajes temporales compartidos entre pestañas.'}
   if(status.textContent==='No se puede cargar el chat. Reintentando…')status.textContent='';if(key===lastKey)return;
   const nearBottom=messages.scrollHeight-messages.scrollTop-messages.clientHeight<50||!lastKey,fragment=document.createDocumentFragment();
-  for(const item of data.messages){const row=document.createElement('p'),author=document.createElement('strong'),time=document.createElement('small');author.textContent=item.name+': ';time.textContent=' · '+new Intl.DateTimeFormat('es-ES',{hour:'2-digit',minute:'2-digit'}).format(new Date(item.created_at));row.append(author,document.createTextNode(item.message),time);fragment.append(row)}
+  for(const item of data.messages){const row=document.createElement('p'),author=document.createElement('strong'),time=document.createElement('small');author.textContent=item.name+': ';time.textContent=' · '+new Intl.DateTimeFormat('es-ES',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(item.created_at));row.append(author,document.createTextNode(item.message),time);fragment.append(row)}
   if(!data.messages.length){const row=document.createElement('p');row.textContent='Todavía no hay mensajes. ¡Di hola!';fragment.append(row)}
   messages.replaceChildren(fragment);lastKey=key;if(nearBottom)messages.scrollTop=messages.scrollHeight;
  }catch{status.textContent='No se puede cargar el chat. Reintentando…'}
