@@ -79,6 +79,7 @@ smoke.visible=smoking;if(!smoking){smokeTime=0;return}smokeTime+=dt;root.updateW
    ['leftElbow',[-.18,-.4,-.55,-.3,-.18]],['rightElbow',[-.55,-.3,-.18,-.4,-.55]],
    ['leftShoulder',[-.42,0,.42,0,-.42]],['rightShoulder',[.42,0,-.42,0,.42]]
   ]),
+  clip('wash',[['leftShoulder',[-.8,-.9,-.8,-.7,-.8]],['rightShoulder',[-.8,-.7,-.8,-.9,-.8]],['leftElbow',[-.6,-.9,-.6,-.4,-.6]],['rightElbow',[-.9,-.6,-.4,-.6,-.9]],['head',[.1,.12,.1,.08,.1]]]),
   clip('reach',[['rightShoulder',[-.3,-1.25,-1.3,-.6,-.3]],['rightElbow',[-.15,-.35,-.75,-.4,-.15]],['head',[0,.1,.16,.08,0]]]),
   clip('cook',[['leftShoulder',[-.7,-.72,-.7,-.68,-.7]],['leftElbow',[-.6,-.6,-.6,-.6,-.6]],['rightShoulder',[-.8,-.95,-.8,-.65,-.8]],['rightElbow',[-.4,-.7,-.8,-.5,-.4]],['head',[.1,.14,.1,.08,.1]]]),
   clip('talk',[['rightShoulder',[-.2,-.65,-.45,-.15,-.2]],['rightElbow',[-.4,-1,-.7,-.4,-.4]],['leftElbow',[-.3,-.4,-.8,-.5,-.3]],['head',[0,.06,0,-.04,0]]]),

@@ -14,6 +14,12 @@ const camera=new THREE.OrthographicCamera(-22,22,16,-16,.1,200);camera.position.
 const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,0,1);controls.enablePan=true;controls.screenSpacePanning=true;controls.zoomToCursor=true;controls.minZoom=.7;controls.maxZoom=6;
 // Fijar la inclinación mantiene la vista isométrica aunque se gire el edificio.
 const fixedPolar=Math.atan2(Math.hypot(30,39),38);controls.minPolarAngle=fixedPolar;controls.maxPolarAngle=fixedPolar;controls.update();
+// Encuadre reproducible para las escenas aisladas del servidor de pruebas.
+if(location.hostname==='127.0.0.1'&&new URLSearchParams(location.search).has('qa')){
+ const kind=new URLSearchParams(location.search).get('qa');
+ const [x,z]=['sleep','desk'].includes(kind)?[-14,-10]:['bath','wash'].includes(kind)?[-15,-2]:[-11,-3];
+ controls.target.set(x,0,z);camera.position.set(x+30,38,z+39);camera.zoom=4.5;camera.updateProjectionMatrix();controls.update();
+}
 const ambient=new THREE.HemisphereLight(0xffffff,0x6c8061,2);scene.add(ambient);const sun=new THREE.DirectionalLight(0xfff3d8,2);sun.position.set(-15,35,20);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-27,right:27,top:27,bottom:-27,near:1,far:90});sun.shadow.bias=-0.0003;sun.shadow.normalBias=.035;scene.add(sun);
 const mat=c=>new THREE.MeshStandardMaterial({color:c,roughness:.85});const materials={grass:mat(0x98c77a),wood:mat(0xe1bd8d),tile:mat(0xdbe6d6),wall:mat(0xbba587),white:mat(0xf8f3e8),blanket:mat(0x7bad9f),brown:mat(0x997054),dark:mat(0x425e50),garden:mat(0x7ab85f)};
 const obstacles=[];
@@ -185,6 +191,8 @@ function positionAt(action,fallback,now){
  return route[route.length-1];
 }
 function resize(){const w=root.clientWidth,h=root.clientHeight;renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1,2.5));renderer.setSize(w,h);const aspect=w/h;camera.left=-18*aspect;camera.right=18*aspect;camera.top=18;camera.bottom=-18;camera.updateProjectionMatrix()}window.addEventListener('resize',resize);resize();
+let followName=null;const followTarget=new THREE.Vector3(),followDelta=new THREE.Vector3();
+window.addEventListener('resident-follow',event=>{followName=event.detail.name;});
 let lastFrame=0;
 function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?Math.min(.05,(t-lastFrame)/1000):0;lastFrame=t;if(snapshot){const byName=new Map(snapshot.people.map(p=>[p.name,p]));const now=snapshot.simulationClock?simulationTime(snapshot.simulationClock,wallBase+performance.now()-receivedAt):clockBase+(performance.now()-receivedAt)*clockRate;clockRate=snapshot.simulationClock?clockRateAt(snapshot.simulationClock,now):clockRate;const hour=new Date(now).getUTCHours(),night=hour<7||hour>=23;scene.background.setHex(night?0x253952:0xb8d99c);ambient.intensity=night?.8:2;sun.intensity=night?.65:2;const placements=[];for(const p of people){const state=byName.get(p.name);if(!state)continue;
  const latest=reactions.get(state.id),age=latest?now-latest.at:Infinity;
@@ -200,7 +208,8 @@ function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?
  const arrived=action&&now>=action.start+(action.travelMs||0);
  const training=action?.activity==='gimnasio'&&arrived;
  const stage=mealStage(action,now),mealEating=stage?.kind==='eating';
- const seated=(arrived&&['jugar','estudiar'].includes(action?.id))||mealEating;
+ const sofaSeated=Boolean(arrived&&action?.seat);
+ const seated=(arrived&&['jugar','estudiar'].includes(action?.id))||mealEating||sofaSeated;
  const cycle=awake&&arrived&&!seated&&!training&&!['comer','fumar'].includes(action.id)?(((now-action.start)/clockRate+p.phase*1000)%16000)/16000:0;
  const excursion=cycle<.25?cycle*4:cycle<.5?2-cycle*4:0;
  const sway=0; // Sin paseos laterales artificiales durante actividades quietas.
@@ -209,14 +218,14 @@ function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?
  const lie=sleeping?Math.max(0,Math.min(1,(now-(action.start+(action.travelMs||0)))/(clockRate*2000))):0;
  const seatStart=mealEating?stage.start:action?.start+(action?.travelMs||0);
  const seatBlend=seated?Math.max(0,Math.min(1,(now-seatStart)/(clockRate*1200))):0;
- const seat=mealEating?action.meal.seat:p.chair;
+ const seat=mealEating?action.meal.seat:sofaSeated?action.seat:p.chair;
  const x=where.x+(p.bed.x-where.x)*lie+(seat.x-where.x)*seatBlend+sway,z=where.z+(p.bed.z-where.z)*lie+(seat.z-where.z)*seatBlend;
  const bob=0;
  placements.push({p,x,z,bob,fixed:!!sleeping||!!seated,walking:!!where.walking});
- if(sleeping)p.g.rotation.y=0;else if(mealEating)p.g.rotation.y=Math.PI/2;else if(seated)p.g.rotation.y=Math.PI;else if(['fridge','cooking'].includes(stage?.kind))p.g.rotation.y=0;else if(where.angle!==undefined)p.g.rotation.y=where.angle;else if(sway>0)p.g.rotation.y=cycle<.25?Math.PI/2:-Math.PI/2;
+ if(sleeping)p.g.rotation.y=0;else if(mealEating)p.g.rotation.y=Math.PI/2;else if(seated)p.g.rotation.y=Math.PI;else if(['fridge','cooking'].includes(stage?.kind)||(arrived&&['asearse','limpiar'].includes(action?.id)))p.g.rotation.y=0;else if(where.angle!==undefined)p.g.rotation.y=where.angle;else if(sway>0)p.g.rotation.y=cycle<.25?Math.PI/2:-Math.PI/2;
  p.avatar.position.set(0,1.06*lie-.18*seatBlend,.9*lie);p.avatar.rotation.x=-Math.PI/2*lie;p.avatar.scale.setScalar(1-.22*lie);p.rig.setSleeping(lie);
  const eating=action?.id==='comer'&&(mealEating||(!stage&&arrived&&now>=action.start+(action.travelMs||0)+(action.meal?.prepareMs||0)));
- const anim=sleeping?'idle':where.walking?'walk':stage?.kind==='fridge'?'reach':stage?.kind==='cooking'?'cook':action?.id==='charlar'?'talk':arrived&&action?.id==='limpiar'?'clean':arrived&&action?.id==='leer'?'read':training?'gym':action?.id==='fumar'&&arrived?'smoke':mealEating?'eat':seated?(action.id==='estudiar'?'study':'computer'):eating?'eatStanding':'idle';
+ const anim=sleeping?'idle':where.walking?'walk':arrived&&action?.id==='asearse'?'wash':stage?.kind==='fridge'?'reach':stage?.kind==='cooking'?'cook':action?.id==='charlar'?'talk':arrived&&action?.id==='limpiar'?'clean':arrived&&action?.id==='leer'?'read':training?'gym':action?.id==='fumar'&&arrived?'smoke':mealEating?'eat':sofaSeated?'sit':seated?(action.id==='estudiar'?'study':'computer'):eating?'eatStanding':'idle';
  p.rig.play(anim);
 
  }
@@ -246,6 +255,7 @@ function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?
   }
   occupied.push({x:pos.x,y:pos.y,w:halfW,h:halfH});
  }
+ if(followName){const target=people.find(p=>p.name===followName);if(target){followTarget.set(target.g.position.x,.8,target.g.position.z);followDelta.copy(followTarget).sub(controls.target).multiplyScalar(Math.min(1,frameSeconds*5));controls.target.add(followDelta);camera.position.add(followDelta)}}
  controls.update();renderer.render(scene,camera)}requestAnimationFrame(animate);
 
 

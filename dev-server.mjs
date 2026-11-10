@@ -1,24 +1,27 @@
-// Servidor de pruebas local: estado temporal compartido entre pestañas.
+// Servidor de pruebas: mundo persistente y compartido entre pestañas.
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { resolve, sep, extname } from 'node:path';
 import { createWorld } from './simulation/world.js';
 import { advanceSharedWorld } from './simulation/shared-world.js';
 import { normalizeChatMessage } from './simulation/chat-validation.js';
+import { localWorldStore } from './simulation/local-world-store.js';
+import {qaScenario} from './simulation/qa-scenarios.js';
 import { normalizePhrase } from './simulation/phrases.js';
-const base=resolve('.'),started=Date.now();
-// Mismo protocolo que el servicio remoto, con almacenamiento temporal en memoria.
-let state=createWorld({seed:73184,now:started}),version=0;
+const base=resolve('.'),started=Date.now(),dataDir=resolve(process.env.SIMS_DATA_DIR||resolve(base,'.local-data'));
+// Mismo protocolo de versiones que el servicio remoto; solo para ensayo local.
+const localStore=await localWorldStore(resolve(dataDir,'world.json'),createWorld({seed:73184,now:started}));
 const chat=[];let chatSequence=0;
 const phrases=[];let phraseSequence=0;
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.css':'text/css; charset=utf-8'};
 http.createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,'http://127.0.0.1');
+  if(url.pathname==='/api/qa-world'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify(qaScenario(url.searchParams.get('qa')||'meal',url.searchParams.get('phase')||'eating')))}
   if(url.pathname==='/api/world'){
    const data=await advanceSharedWorld({
-    read:async()=>({version,state:{...structuredClone(state),phraseCatalog:structuredClone(phrases)}}),
-    write:async(expected,next)=>{if(version!==expected)return false;state=structuredClone(next);version++;return true}
+    read:async()=>{const row=await localStore.read();row.state.phraseCatalog=structuredClone(phrases);return row},
+    write:localStore.write
    });
    if(!data){res.writeHead(503,{'Content-Type':'application/json'});return res.end(JSON.stringify({error:'Mundo ocupado'}))}
    res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});
@@ -46,7 +49,7 @@ http.createServer(async(req,res)=>{
    return reply(201,{message});
   }
   const path=resolve(base,'.'+decodeURIComponent(url.pathname==='/'?'/index.html':url.pathname));
-  if(!path.startsWith(base+sep)||path.includes(sep+'.git'+sep)){res.writeHead(403);return res.end()}
+  if(!path.startsWith(base+sep)||path.split(sep).some(part=>part.startsWith('.'))){res.writeHead(403);return res.end()}
   const data=await readFile(path);res.writeHead(200,{'Content-Type':mime[extname(path)]||'application/octet-stream'});res.end(data);
- }catch{res.writeHead(404);res.end('No encontrado')}
-}).listen(8766,'127.0.0.1',()=>console.log('Prueba local: http://127.0.0.1:8766'));
+ }catch(error){const api=req.url.startsWith('/api/');res.writeHead(api?503:404,{'Content-Type':api?'application/json':'text/plain'});res.end(api?JSON.stringify({error:'No se pudo cargar el servicio local'}):'No encontrado')}
+}).listen(Number(process.env.SIMS_PORT)||8766,'127.0.0.1',function(){console.log('Prueba local: http://127.0.0.1:'+this.address().port)});

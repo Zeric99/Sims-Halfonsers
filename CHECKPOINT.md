@@ -7,7 +7,7 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 - Simulación compartida en Vercel y Neon. Los visitantes observan.
 - Sin visitantes durante más de 90 segundos no se generan sucesos ni cambios sociales. Al regresar se presupone vida cotidiana, se conservan relaciones y recuerdos y se inicia en habitaciones.
 - Reloj ficticio compartido: 29 minutos reales de día (07:00–23:00 del juego) y 1 de noche. La hora sigue el ciclo al volver, pero no se inventan sucesos sociales durante la ausencia.
-- No usar almacenamiento local como estado canónico. El código se actualiza directamente en GitHub.
+- En producción, estado canónico en Neon. Por instrucción posterior del usuario, esta entrega se desarrolla y prueba localmente; no publicar hasta que lo indique. El mundo de ensayo persiste solo en el servidor local.
 
 ## Estado comprobado
 - [x] Escena Three.js existente, 14 personajes y nombres.
@@ -27,18 +27,25 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 - [x] Perfiles independientes por mundo, para que una simulación no modifique los valores iniciales de otra.
 - [x] Pruebas ejecutables con `npm test` y flujo de GitHub Actions para cambios en main y pull requests.
 - [x] Escenarios de siete días y reanudación de un estado serializado; estas pruebas no sustituyen la comprobación con dos clientes reales.
-- La fase 1 ya se ha comenzado; los puntos siguientes son trabajo pendiente, no requisitos previos bloqueantes.
+- Fase 1 implementada y verificada en local; ver el cierre y la evidencia siguientes. La aceptación remota sigue separada.
 
-## Fase 1: motor doméstico
-- [ ] Separar identidad, perfil, estado y aprendizaje; validar esquema y migraciones. La envoltura rechaza versiones futuras, IDs duplicados y metadatos inválidos. En local también valida necesidades, posiciones y acciones antes de mutar el mundo y conserva la migración de versiones antiguas sin baño; falta completar la separación y validar los demás campos.
-- [x] Reloj ficticio compartido: ciclo de 29 minutos de día y 1 de noche. El cambio y la migración sin saltos tienen pruebas automatizadas; comprobar el despliegue y la migración en producción.
-- [ ] Necesidades por tiempo, comida, sueño con histéresis, higiene, compañía y diversión; la saciedad sube gradualmente al comer y el baño es una necesidad con recurso compartido. En la rama de prueba, aseo y baño recuperan sus necesidades gradualmente tras el trayecto, manteniendo compatibilidad con acciones antiguas. Se ha añadido una primera histéresis para evitar despertares prematuros y volver a acostarse con energía alta; faltan calibración y animaciones.
-- [ ] Acciones con precondiciones, utilidad, duraciones, interrupciones y resultados únicos. El trayecto ya no consume el tiempo de actividad y dormir no recupera energía antes de llegar; el ocio puede interrumpirse por hambre, sueño o baño críticos cuando el recurso está disponible, liberando la reserva sin dar la recompensa; quedan precondiciones e interrupciones más completas.
-- [ ] Recursos con capacidad, reservas, vencimiento y alternativas. La reserva dura todo el trayecto y la actividad. En local se liberan reservas huérfanas y se repara el vencimiento de las acciones activas. Si el gimnasio está ocupado, se puede escoger otra afición del perfil; quedan capacidades y alternativas más generales.
-- [ ] Habitaciones, puertas y rutas válidas sin atravesar muebles; estados de ejecución. La ficha distingue en camino, esperando, durmiendo y realizando una actividad; falta comprobar visualmente las rutas y su interacción con los muebles.
-- [ ] Cocina/comida, ocio, estudio, ordenador, descanso y limpieza. Implementadas acciones iniciales de comida, sueño, aseo, estudio y ocio; la cocina acumula desorden tras las comidas y puede limpiarse con reserva. La comida ahora recorre nevera, fogones y mesa con saciedad gradual y asiento; queda revisar visualmente las transiciones y añadir recetas y otras tareas.
-- [ ] Estado canónico transaccional, control de concurrencia y eventos idempotentes.
-- [ ] Dos clientes, reconexión, reinicio y escenarios de 7 días con semillas. Probados determinismo, siete días y reanudación desde un estado serializado en el núcleo, además de sueño durante el trayecto, duración de reservas e interrupciones por necesidades urgentes; faltan pruebas integrales con Neon, concurrencia y reconexión.
+## Fase 1: motor doméstico — implementada y verificada en local
+
+Evidencia detallada en [FASE1-VERIFICACION.md](FASE1-VERIFICACION.md). Cierre de implementación y aceptación local; las pruebas con Neon real quedan separadas más abajo. No se ha publicado esta entrega.
+
+- [x] Separar identidad/perfil de origen, estado de ejecución y aprendizaje; copias independientes, sustitución de perfil conservando progreso, validación previa y migraciones compatibles.
+- [x] Reloj ficticio compartido: 29 minutos de día y 1 de noche, con migración y límites probados.
+- [x] Necesidades por tiempo: comida, sueño con histéresis, higiene, baño, compañía y diversión; calibración de siete días en tres semillas y recuperación gradual tras llegar.
+- [x] Acciones con precondiciones, utilidad, duraciones, interrupciones urgentes y resultados únicos.
+- [x] Recursos con capacidad, reservas, vencimiento y alternativas: sofá de tres plazas, cocina/baño/gimnasio exclusivos y camas/ordenadores individuales.
+- [x] Habitaciones, puertas, rutas contra obstáculos y estados de ejecución. Catorce secuencias completas de comida y rutas al jardín/gimnasio comprobadas; revisión visual local de las posturas.
+- [x] Cocina/comida con tres recetas, ocio, estudio, ordenador, descanso y limpieza. Nevera → fogones → mesa; aseo frente al lavabo y limpieza frente a la encimera.
+- [x] Estado canónico con escritura condicional por versión, reintentos de concurrencia y eventos/resultados idempotentes; persistencia local para el ensayo.
+- [x] Dos clientes HTTP, reconexión, parada/reinicio real del servidor local y escenarios de siete días con semillas y recuperación determinista.
+
+### Aceptación remota pendiente después de la prueba local
+- [ ] Ejecutar estas comprobaciones contra Neon real y varias instancias: concurrencia, desconexión/reconexión, reinicio y persistencia de chat/frases. No se han marcado como realizadas con Neon.
+- [ ] Publicar únicamente cuando lo indique el usuario y comprobar el commit final en Vercel.
 
 ## Fase 2: convivencia
 - [ ] Encuentros con consentimiento y conversación única por pareja. Base provisional con personas disponibles y próximas, bocadillos y diario; faltan invitaciones y consentimiento explícito más elaborado.
@@ -64,9 +71,20 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 Cuentas y formulario completo, edición visual avanzada, IA generativa obligatoria, economía, envejecimiento, exteriores, empleo y mudanzas.
 
 ## Últimos avances preparados para producción
-- Validación previa de posiciones, trayectos y acciones; una entrada dañada no modifica parcialmente a los demás vecinos. Pendiente ampliar la validación de etapas de comida y otros campos.
+- Validación previa de posiciones, trayectos y acciones; una entrada dañada no modifica parcialmente a los demás vecinos. Validación ampliada en local a etapas de comida, perfil, aprendizaje, relaciones, reservas y estado doméstico.
 - Ciclo actualizado a 29 minutos de día y 1 de noche; reloj compartido y migración probados, pendiente de comprobación en producción.
 - Alternativa de afición para vecinos cuyo gimnasio esté ocupado; probada mediante pruebas automatizadas.
 - Recuperación de reservas huérfanas y reparación del vencimiento durante acciones activas; verificado mediante pruebas automatizadas.
 - Validación temprana de las necesidades de todos los vecinos, con pruebas que garantizan que un dato corrupto no modifica parcialmente el mundo y que los estados antiguos sin necesidad de baño siguen migrando.
 - La web, los modelos articulados, las frases compartidas y las animaciones están publicados en Vercel. El nuevo ciclo, el salseómetro y los ajustes de validación y reservas se incluyen en este despliegue; falta comprobarlos en producción.
+
+## Entrega local de autonomía (pendiente de prueba del usuario)
+- Ver [AUTONOMIA.md](AUTONOMIA.md): las seis áreas divididas en pasos y su verificación.
+- Iniciativas con aceptación/rechazo y recorrido físico, recuerdos que influyen en decisiones, historias y diálogos contextuales.
+- Resumen de visita, intención y recuerdos en fichas y seguimiento de cámara.
+- Mundo de prueba local persistente con escritura por versión; no se utiliza en Vercel.
+- 82 pruebas automáticas, ensayo de siete días en tres semillas y comprobaciones visuales. No publicado. La implementación de fase 1 queda verificada en local; la aceptación con Neon real sigue pendiente y está identificada por separado.
+
+## Cierre local de fase 1 (10 noviembre 2026)
+- Ver [FASE1-VERIFICACION.md](FASE1-VERIFICACION.md): implementación, escenarios reproducibles, pruebas y límites de la aceptación local.
+- La producción no contiene todavía esta entrega. No confundir comprobaciones históricas de Vercel con las pruebas locales nuevas.

@@ -48,6 +48,7 @@ const toIndex=p=>Math.max(0,Math.min(ROWS-1,Math.round((p.z-MIN_Z)/STEP)))*COLS+
 function nearest(id){if(!blocked[id])return id;let x=id%COLS,z=Math.floor(id/COLS);for(let radius=1;radius<=6;radius++)for(let dz=-radius;dz<=radius;dz++)for(let dx=-radius;dx<=radius;dx++){let nx=x+dx,nz=z+dz;if(nx>=0&&nx<COLS&&nz>=0&&nz<ROWS&&!blocked[nz*COLS+nx])return nz*COLS+nx}return -1}
 const point=id=>({x:MIN_X+(id%COLS)*STEP,z:MIN_Z+Math.floor(id/COLS)*STEP});
 export function findRoute(from,to){
+ if(![from,to].every(p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.z)&&p.x>=MIN_X&&p.x<=MIN_X+(COLS-1)*STEP&&p.z>=MIN_Z&&p.z<=MIN_Z+(ROWS-1)*STEP))return [];
  let start=nearest(toIndex(from)),end=nearest(toIndex(to));if(start<0||end<0)return [];
  const prev=new Int32Array(COLS*ROWS).fill(-1),queue=new Int32Array(COLS*ROWS);let head=0,tail=0;queue[tail++]=start;prev[start]=start;
  while(head<tail&&prev[end]<0){const id=queue[head++],x=id%COLS,z=Math.floor(id/COLS);for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){let nx=x+dx,nz=z+dz;if(nx<0||nx>=COLS||nz<0||nz>=ROWS)continue;let next=nz*COLS+nx;if(!blocked[next]&&prev[next]<0){prev[next]=id;queue[tail++]=next}}}

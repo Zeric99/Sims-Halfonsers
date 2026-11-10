@@ -7,7 +7,10 @@
     "@neondatabase/serverless": "1.0.2"
   },
   "scripts": {
-    "test": "node --test tests/*.test.js"
+    "dev": "node dev-server.mjs",
+    "test": "node --test tests/*.test.js",
+    "test:domestic": "node scripts/domestic-rehearsal.mjs",
+    "test:stories": "node scripts/local-rehearsal.mjs"
   },
   "engines": {
     "node": ">=20"

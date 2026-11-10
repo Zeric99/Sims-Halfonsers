@@ -5,6 +5,7 @@ export function speechAt(conversation,personId,now){
  const turn=Math.floor((now-conversation.start)/(8*60000))%2;
  if(participants[turn]!==personId)return '';
  if(conversation.lines?.[personId])return conversation.lines[personId];
+ if(conversation.dialogue?.[turn])return conversation.dialogue[turn];
  const topic=conversation.topic||'el día';
  const dialogues=[
   ['¿Qué tal te va con '+topic+'?','¡Bastante bien! ¿Y a ti?'],

@@ -1,6 +1,11 @@
 // Núcleo determinista independiente de la representación y del alojamiento.
 import { DAY_RATE } from './clock.js';
+import {recipeFor} from './recipes.js';
+import {freeResource} from './resources.js';
+import {socialPulse} from './autonomy.js';
+import {socialBias} from './memory.js';
 import { residents } from './profiles.js';
+import {createResident} from './resident-state.js';
 import { advanceNeeds, urgency } from './needs.js';
 import { openConversation, finishConversation } from './social.js';
 import { recordKitchenWait, attemptKitchenRepair, releaseKitchen, coolConflicts } from './conflicts.js';
@@ -38,7 +43,7 @@ function inSleepWindow(hour,profile){const duration=(profile.wakeHour-profile.sl
 function event(world,type,person,at,extra={}){world.events.push({id:world.worldId+':'+(++world.eventSequence),type,personId:person.id,at,...extra});if(world.events.length>500)world.events.splice(0,world.events.length-500)}
 export function createWorld({worldId='casa',seed=123456,now=Date.now(),timezone='Europe/Madrid'}={}){
  if(!Number.isFinite(now)||!Number.isInteger(seed))throw new TypeError('Reloj o semilla inválidos');
- return {worldId,schemaVersion:SCHEMA_VERSION,simulationVersion:ENGINE_VERSION,seed,randomState:seed>>>0,worldVersion:0,lastSimulatedAt:now,timezone,eventSequence:0,events:[],reservations:{},households:Object.fromEntries(['piso-1','piso-2','piso-3','piso-4'].map(id=>[id,{mess:0}])),people:residents.map(({identity,profile},i)=>({id:identity.id,name:identity.name,homeId:identity.homeId,profile:structuredClone(profile),needs:{saciedad:65+i%5*4,energia:65+i%4*5,higiene:75,compania:60,diversion:65,bano:75},action:null,learned:{skills:{},preferences:{}},memories:[],relationships:{}}))};
+ return {worldId,schemaVersion:SCHEMA_VERSION,simulationVersion:ENGINE_VERSION,seed,randomState:seed>>>0,worldVersion:0,lastSimulatedAt:now,timezone,eventSequence:0,events:[],reservations:{},households:Object.fromEntries(['piso-1','piso-2','piso-3','piso-4'].map(id=>[id,{mess:0}])),people:residents.map(createResident)};
 }
 function choose(world,p,at){
  const hour=localHour(at,'UTC'),sleepTime=inSleepWindow(hour,p.profile),n=p.needs,options=[];
@@ -52,8 +57,9 @@ function choose(world,p,at){
    if(!hobby)continue;
    gym=false;
   }
-  const key=gym?'comunidad:gimnasio':a.resource?(p.homeId+':'+a.resource+(['bed','computer'].includes(a.resource)?':'+p.id:'')):null;
-  if(key&&world.reservations[key]&&world.reservations[key].until>at)continue;
+  const base=gym?'comunidad:gimnasio':a.resource?(p.homeId+':'+a.resource+(['bed','computer'].includes(a.resource)?':'+p.id:'')):null;
+  const key=base?freeResource(world,base,at,a.resource==='sofa'?3:1):null;
+  if(base&&!key)continue;
   const mess=world.households[p.homeId]?.mess??0;
   if(id==='limpiar'&&mess<20)continue;
   // Evitar volver a acostarse nada más despertarse con energía suficiente.
@@ -81,34 +87,39 @@ function choose(world,p,at){
 }
 const homes={'piso-1':[-10,-7],'piso-2':[10,-7],'piso-3':[-10,7],'piso-4':[10,7]};
 function roomPosition(p){const [cx,cz]=homes[p.homeId];const slot=residents.filter(r=>r.identity.homeId===p.homeId).findIndex(r=>r.identity.id===p.id);return {x:cx-7+Math.max(0,slot)*3.5+2.5,z:cz-6+3.7}}
-function destination(p,id){const [cx,cz]=homes[p.homeId];if(id==='pasear')return {x:0,z:16};if(id==='fumar'){const index=['Catalán','Linkal','May','Mei'].indexOf(p.name);return {x:-3+index*2,z:17}}if(['dormir','jugar','estudiar'].includes(id))return roomPosition(p);if(['asearse','usar_bano'].includes(id))return {x:cx-5.5,z:cz+4.25};if(id==='comer'||id==='limpiar')return {x:cx-1,z:cz+1};return {x:cx+1,z:cz+1}}
+function destination(p,id){const [cx,cz]=homes[p.homeId];if(id==='pasear')return {x:0,z:16};if(id==='fumar'){const index=['Catalán','Linkal','May','Mei'].indexOf(p.name);return {x:-3+index*2,z:17}}if(['dormir','jugar','estudiar'].includes(id))return roomPosition(p);if(id==='asearse')return {x:cx-4.9,z:cz+4.65};if(id==='usar_bano')return {x:cx-5.5,z:cz+4.25};if(id==='limpiar')return {x:cx-1.5,z:cz+4.35};if(id==='comer')return {x:cx-1,z:cz+1};return {x:cx+1,z:cz+1}}
 function routeFor(p,to){return findRoute(p.position??roomPosition(p),to)}
-function planMeal(p,at){
+function planMeal(p,at,eventSequence){
+ const recipe=recipeFor(p,eventSequence);
  const [cx,cz]=homes[p.homeId],stages=[];let cursor=at,position=p.position??roomPosition(p);
  const walk=(kind,target)=>{const route=findRoute(position,target);if(!route.length)return false;let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const duration=Math.round(length*1500*DAY_RATE);stages.push({kind,start:cursor,end:cursor+duration,route});cursor+=duration;position=route.at(-1);return true};
  const pause=(kind,duration)=>{stages.push({kind,start:cursor,end:cursor+duration,route:[position]});cursor+=duration};
  if(!walk('to_fridge',{x:cx+1.3,z:cz+4.35}))return null;
  pause('fridge',MINUTE);
  if(!walk('to_stove',{x:cx-2.8,z:cz+4.35}))return null;
- pause('cooking',8*MINUTE);
+ pause('cooking',recipe.prepareMinutes*MINUTE);
  if(!walk('to_table',{x:cx+1.9,z:cz+1.2}))return null;
  const eatingStart=cursor;pause('eating',25*MINUTE);
- return {stages,eatingStart,eatMs:25*MINUTE,seat:{x:cx+1.9,z:cz+1.2},until:cursor};
+ return {recipe:recipe.id,recipeName:recipe.name,nutrition:recipe.nutrition,stages,eatingStart,eatMs:25*MINUTE,seat:{x:cx+1.9,z:cz+1.2},until:cursor};
 }
-function acceptsInvitation(world,p,other){const tension=p.relationships?.[other.id]?.tension??0;const socialNeed=(100-p.needs.compania)/100;const chance=Math.max(.1,Math.min(.9,.25+.35*p.profile.traits.sociabilidad+.3*socialNeed-tension/200));return random(world)<chance}
+function acceptsInvitation(world,p,other){const tension=p.relationships?.[other.id]?.tension??0;const socialNeed=(100-p.needs.compania)/100;const chance=Math.max(.1,Math.min(.9,.25+.35*p.profile.traits.sociabilidad+.3*socialNeed-tension/200+socialBias(p,other.id,world.lastSimulatedAt)*.04));return random(world)<chance}
 function start(world,p,at,forced=null){
  const kitchen=world.reservations[p.homeId+':kitchen'];
  if(p.needs.saciedad<50&&kitchen&&kitchen.until>at&&kitchen.personId!==p.id){const occupant=world.people.find(q=>q.id===kitchen.personId);if(occupant)recordKitchenWait(world,p,occupant,at)}
  const selected=forced??choose(world,p,at);if(!selected)return;
  const def=definitions[selected.id];
  const gym=selected.id==='practicar'&&selected.key==='comunidad:gimnasio';
- const meal=selected.id==='comer'?planMeal(p,at):null;
- const route=selected.id==='comer'?(meal?.stages[0].route??[]):routeFor(p,gym?{x:9,z:17}:destination(p,selected.id));
+ const meal=selected.id==='comer'?planMeal(p,at,world.eventSequence):null;
+ const sofaSlot=selected.key?.includes(':sofa:')?Number(selected.key.split(':').at(-1)):null;
+ const [homeX,homeZ]=homes[p.homeId],sofaSeat=sofaSlot===null?null:{x:homeX+4.2+(sofaSlot-1)*.77,z:homeZ+4.8};
+ const route=selected.id==='comer'?(meal?.stages[0].route??[]):routeFor(p,sofaSeat?{x:sofaSeat.x,z:homeZ+3.95}:gym?{x:9,z:17}:destination(p,selected.id));
  if(!route.length){const pos=p.position??roomPosition(p);p.action={id:'esperar',label:definitions.esperar.label,start:at,until:at+3*MINUTE,resource:null,route:[pos],travelMs:0};event(world,'route_blocked',p,at,{action:selected.id});return}
  let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const travelMs=Math.round(length*1500*DAY_RATE),until=meal?.until??(at+travelMs+def.minutes*MINUTE);
  const hobby=selected.hobby||p.profile.interests[0];const label=gym?'levantando pesas en el gimnasio comunitario':selected.id==='practicar'&&hobby?'disfrutando de '+hobby:def.label;
  p.action={id:selected.id,label,start:at,until,resource:selected.key,route,travelMs};
  if(gym)p.action.activity='gimnasio';
+ if(sofaSeat)p.action.seat=sofaSeat;
+ if(selected.id==='usar_bano')p.action.seat={x:homeX-6.35,z:homeZ+5.33};
  if(meal)p.action.meal=meal;
  if(['asearse','usar_bano'].includes(selected.id))p.action.care={durationMs:def.minutes*MINUTE};
  if(selected.key)world.reservations[selected.key]={personId:p.id,until};
@@ -177,11 +188,12 @@ export function resumeAfterAbsence(world,now,{idleThresholdMs=90000,wallNow=now,
  if(!force && wallNow-last<=idleThresholdMs)return false;
  world.reservations={};
  for(const c of Object.values(world.conversations??{}))if(!c.finished){c.finished=true;c.cancelled=true}
+ for(const meeting of Object.values(world.meetings??{}))if(!meeting.finished){meeting.finished=true;meeting.cancelled=true}
  for(const p of world.people){
   p.action=null;
   p.position=roomPosition(p);
   // Descanso y comidas se presuponen, sin generar recuerdos ni relaciones.
-  p.needs={...p.needs,saciedad:75,energia:75,higiene:75,bano:75,compania:Math.max(35,p.needs.compania),diversion:Math.max(40,p.needs.diversion)};
+  p.needs={...p.needs,saciedad:75,energia:(localHour(now,'UTC')>=7&&localHour(now,'UTC')<23)?90:35,higiene:75,bano:75,compania:Math.max(35,p.needs.compania),diversion:Math.max(40,p.needs.diversion)};
  }
  world.lastSimulatedAt=now-1;
  return true;
@@ -189,6 +201,8 @@ export function resumeAfterAbsence(world,now,{idleThresholdMs=90000,wallNow=now,
 // Procesamiento acotado: el llamador persiste cada lote antes de continuar.
 export function advanceWorld(world,target,{maxMinutes=720}={}){
  validateWorldEnvelope(world,{schemaVersion:SCHEMA_VERSION,simulationVersion:ENGINE_VERSION});
+ if(!Number.isFinite(target)||target<world.lastSimulatedAt)throw new RangeError('El reloj no puede retroceder');
+ if(!Number.isInteger(maxMinutes)||maxMinutes<1||maxMinutes>10080)throw new RangeError('Límite de lote inválido');
  if(world.simulationVersion<2){const initial=new Map(residents.map(r=>[r.identity.id,r.profile]));for(const p of world.people){if(p.profile.provenance==='provisional'&&initial.has(p.id))p.profile={...p.profile,traits:initial.get(p.id).traits}}world.simulationVersion=2}
  if(world.simulationVersion<3){for(const p of world.people){p.position=p.position??roomPosition(p);if(p.action&&!p.action.route){p.action.route=[p.position];p.action.travelMs=0}}world.simulationVersion=3}
  if(world.simulationVersion<4){for(const p of world.people)if(!Number.isFinite(p.needs.bano))p.needs.bano=75;world.simulationVersion=4}
@@ -197,8 +211,6 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
   for(const id of Object.keys(homes))world.households[id]??={mess:0};
   world.simulationVersion=5;
  }
- if(!Number.isFinite(target)||target<world.lastSimulatedAt)throw new RangeError('El reloj no puede retroceder');
- if(!Number.isInteger(maxMinutes)||maxMinutes<1||maxMinutes>10080)throw new RangeError('Límite de lote inválido');
  const end=Math.min(target,world.lastSimulatedAt+maxMinutes*MINUTE);
  while(world.lastSimulatedAt<end){
   const at=world.lastSimulatedAt,step=Math.min(MINUTE,end-at),next=at+step;
@@ -212,9 +224,10 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
    else reservation.until=action.until;
   }
   for(const p of world.people)addressUrgentNeed(world,p,at);
+  socialPulse(world,at,()=>random(world));
   // Una invitación puede interrumpir ocio tranquilo si ambos están disponibles,
   // cerca y han pasado al menos tres horas de juego desde su último encuentro.
-  const canInvite=p=>p.action&&(['leer','pasear','ver_tv','descansar'].includes(p.action.id)||(p.action.id==='practicar'&&p.action.activity!=='gimnasio'))
+  const canInvite=p=>p.action&&!p.action.meetingId&&(['leer','pasear','ver_tv','descansar'].includes(p.action.id)||(p.action.id==='practicar'&&p.action.activity!=='gimnasio'))
     &&at-p.action.start>=10*MINUTE&&at>=p.action.start+(p.action.travelMs||0)
     &&p.action.until-at>=5*MINUTE&&at-(p.lastSocialAt??-Infinity)>=3*HOUR;
   for(const a of world.people){
@@ -249,7 +262,7 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
     const eatingStarts=meal.eatingStart??(p.action.start+(p.action.travelMs||0)+meal.prepareMs);
     const eatingEnds=Math.min(p.action.until,eatingStarts+meal.eatMs);
     const elapsed=Math.max(0,Math.min(next,eatingEnds)-Math.max(at,eatingStarts));
-    if(elapsed)p.needs.saciedad=limit(p.needs.saciedad+definitions.comer.gain*elapsed/meal.eatMs);
+    if(elapsed)p.needs.saciedad=limit(p.needs.saciedad+(meal.nutrition??definitions.comer.gain)*elapsed/meal.eatMs);
    }
    // El aseo y el baño solo recuperan la necesidad durante su uso efectivo.
    const action=p.action,care=action?.care;
