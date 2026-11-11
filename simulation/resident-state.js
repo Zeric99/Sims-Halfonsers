@@ -1,3 +1,5 @@
+import {profileFromQuestionnaire, validateProfile} from './profiles.js';
+
 // Límites del modelo: identidad y perfil de origen no comparten referencias
 // con el estado de ejecución ni con el aprendizaje de una partida.
 export function createResident({identity,profile},index=0){
@@ -6,6 +8,11 @@ export function createResident({identity,profile},index=0){
   action:null,learned:{skills:{},preferences:{}},memories:[],relationships:{}};
 }
 export function replaceProfile(person,profile){
- person.profile=structuredClone(profile);
+ person.profile=structuredClone(validateProfile(profile));
  return person;
+}
+
+export function applyQuestionnaire(person,submission){
+ const profile=profileFromQuestionnaire(submission,person.profile);
+ return replaceProfile(person,profile);
 }

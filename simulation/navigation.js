@@ -58,3 +58,14 @@ export function findRoute(from,to){
  const route=[point(cells[0])];for(let i=1;i<cells.length-1;i++){let ax=cells[i]%COLS-cells[i-1]%COLS,az=Math.floor(cells[i]/COLS)-Math.floor(cells[i-1]/COLS),bx=cells[i+1]%COLS-cells[i]%COLS,bz=Math.floor(cells[i+1]/COLS)-Math.floor(cells[i]/COLS);if(ax!==bx||az!==bz)route.push(point(cells[i]))}
  if(cells.length>1)route.push(point(end));return route;
 }
+
+export function canTalkAt(a,b){
+ if(!a||!b)return false;
+ const distance=Math.hypot(b.x-a.x,b.z-a.z);
+ if(distance>3)return false;
+ const steps=Math.max(1,Math.ceil(distance/.2));
+ for(let i=0;i<=steps;i++){
+  if(!isWalkable(a.x+(b.x-a.x)*i/steps,a.z+(b.z-a.z)*i/steps))return false;
+ }
+ return true;
+}

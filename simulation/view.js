@@ -1,12 +1,15 @@
+import {describeMemory,relevantMemories} from './memory.js';
+import {activities} from './plans.js';
 import {describeStory} from './stories.js';
 import { neighbourhoodHighlights } from './highlights.js';
 import { describeResident } from './resident-details.js';
 const panel=document.querySelector('#resident-panel'),details=document.querySelector('#resident-details'),residentTitle=document.querySelector('#resident-title');
 let selectedResident=null,followed=null,visitStart=null;
-if(location.hostname==='127.0.0.1'&&new URLSearchParams(location.search).has('qa')){document.querySelector('.live-badge').textContent='ESCENA DE PRUEBA LOCAL';document.querySelector('.scene-label small').textContent='POSTURA AISLADA · SIN CAMBIAR LA PARTIDA'}
+const query=new URLSearchParams(location.search),qa=location.hostname==='127.0.0.1'&&query.has('qa');
+if(qa){document.querySelector('.live-badge').textContent='ESCENA DE PRUEBA LOCAL';document.querySelector('.scene-label small').textContent='POSTURA AISLADA · SIN CAMBIAR LA PARTIDA'}
 const followButton=document.querySelector('#resident-follow');
 followButton.addEventListener('click',()=>{followed=followed===selectedResident?null:selectedResident;followButton.textContent=followed?'Dejar de seguir':'Seguir con la cámara';window.dispatchEvent(new CustomEvent('resident-follow',{detail:{name:followed}}))});
-document.querySelector('#watch-story').addEventListener('click',()=>{const world=window.sharedWorld?.world;if(!world)return;const person=world.people.find(p=>p.action?.id==='charlar')||world.people.find(p=>p.action?.meetingId);if(person){window.dispatchEvent(new CustomEvent('resident-select',{detail:{name:person.name}}));followed=person.name;followButton.textContent='Dejar de seguir';window.dispatchEvent(new CustomEvent('resident-follow',{detail:{name:followed}}))}});
+document.querySelector('#watch-story').addEventListener('click',()=>{const world=window.sharedWorld?.world;if(!world)return;const person=world.people.find(p=>p.action?.id==='charlar')||world.people.find(p=>p.action?.meetingId||p.action?.planId);if(person){window.dispatchEvent(new CustomEvent('resident-select',{detail:{name:person.name}}));followed=person.name;followButton.textContent='Dejar de seguir';window.dispatchEvent(new CustomEvent('resident-follow',{detail:{name:followed}}))}});
 
 function showResident(){
  if(!selectedResident||!window.sharedWorld)return;
@@ -19,16 +22,39 @@ function showResident(){
  row('Ahora',info.current);row('Estado',({IDLE:'Sin actividad',MOVING:'En camino',WAITING:'Esperando',SLEEPING:'Durmiendo',ACTING:'Realizando actividad'})[info.execution]);row('Después',info.next);
  const person=data.world.people.find(p=>p.name===info.name);
  if(person.intention)row('Intención reciente',person.intention.text);
- const memoryNames={prank:'una broma que sentó mal',repair:'una reconciliación',shared_interest:'una afición compartida',catch_up:'una charla',rejection:'una invitación rechazada',invitation:'una invitación aceptada',conversation:'una charla'};
- row('Recuerdos sociales',(person.memories||[]).slice(-3).reverse().map(m=>(memoryNames[m.kind]||m.kind)+' con '+(data.world.people.find(p=>p.id===m.with)?.name||'un vecino')).join(' · ')||'Todavía no hay recuerdos.');
+ row('Recuerdos',info.memories.map(memory=>memory.text+(memory.emotion?' · '+memory.emotion:''))
+  .join(' / ')||'Todavía no hay recuerdos recientes.');
+ if(info.goal){
+  const status={active:'en curso',completed:'cumplido',expired:'caducado',cancelled:'cancelado'}[info.goal.status];
+  row('Objetivo',info.goal.label+' · '+info.goal.progress+'/'+info.goal.target+' · '+status);
+ }
+ if(info.reflection){
+  row('Reflexión de anoche',[
+   info.reflection.positive?'Me quedo con '+info.reflection.positive+'.':null,
+   info.reflection.concern?'Me preocupa '+info.reflection.concern+'.':null
+  ].filter(Boolean).join(' ')||'Quiero dedicar un rato a mi objetivo.');
+ }
+ const skills={cocina:'Cocina',estudio:'Estudio',juegos:'Juegos',aficiones:'Aficiones'};
+ const levels=Object.entries(info.skills).map(([id,value])=>(skills[id]??id)+' '+value.toLocaleString('es-ES',{maximumFractionDigits:2})+'/100');
+ if(levels.length)row('Habilidades',levels.join(' · '));
  row('Hogar y ánimo',info.home.replace('piso-','Piso ')+' · '+info.mood);
  const labels={saciedad:'Saciedad',energia:'Energía',higiene:'Higiene',compania:'Compañía',diversion:'Diversión',bano:'Baño'};
  row('Necesidades',Object.entries(info.needs||{}).map(([k,v])=>(labels[k]||k)+' '+Math.round(v)).join(' · '));
+ const formatTime=at=>new Intl.DateTimeFormat('es-ES',{timeZone:'UTC',hour:'2-digit',minute:'2-digit'}).format(at);
+ for(const plan of info.commitments)row('Plan',plan.label+' con '+plan.other+' · '+formatTime(plan.at)
+  +' · '+({scheduled:'acordado',travelling:'en camino',active:'en curso'}[plan.status]));
+ if(info.relationship)row('Pareja',info.relationship);
+ if(info.relationships.length)row('Relaciones',info.relationships.slice(0,4).map(r=>
+  r.name+' · '+r.status+' · amistad '+r.friendship+' · confianza '+r.trust+' · tensión '+r.tension).join(' / '));
  row('Tensión',info.tensions.length?info.tensions.map(r=>r.name+' ('+r.tension+'/100)').join(', '):'No hay tensión elevada registrada.');
- row('Desacuerdos',info.conflicts.length?info.conflicts.map(c=>c.name+' · '+c.cause).join('; '):'No hay conflictos abiertos registrados.');
+ row('Desacuerdos',info.conflicts.length?info.conflicts.map(c=>c.name+' · '+c.cause+(c.state==='repair_pending'?' · Acuerdo pendiente: '+(c.request||'respetar el turno'):c.state==='cooling'?' · Necesita tiempo':'')).join('; '):'No hay conflictos abiertos registrados.');
  const header=document.createElement('strong');header.textContent='Actividad reciente';fragment.append(header);
  if(!info.history.length){const p=document.createElement('p');p.textContent='Todavía no hay actividades anteriores en el historial disponible.';fragment.append(p)}
  for(const item of info.history){const p=document.createElement('p'),time=new Intl.DateTimeFormat('es-ES',{timeZone:'UTC',hour:'2-digit',minute:'2-digit'}).format(item.at);p.textContent=time+' · '+item.text;fragment.append(p)}
+ if(info.socialHistory.length){
+  const title=document.createElement('strong');title.textContent='Historia reciente';fragment.append(title);
+  for(const item of info.socialHistory){const p=document.createElement('p');p.textContent=formatTime(item.at)+' · '+item.text;fragment.append(p)}
+ }
  details.replaceChildren(fragment);
 }
 window.addEventListener('resident-select',event=>{selectedResident=event.detail.name;showResident();panel.scrollIntoView({block:'nearest',behavior:'smooth'})});
@@ -37,7 +63,6 @@ const clock=document.querySelector('#world-clock'), list=document.querySelector(
 let lastVersion=-1;
 async function refresh(){
  try{
-  const query=new URLSearchParams(location.search),qa=location.hostname==='127.0.0.1'&&query.has('qa');
   const response=await fetch(qa?'/api/qa-world?'+query:'/api/world',{cache:'no-store'});
   if(!response.ok)throw new Error('No disponible');
   const data=await response.json(),world=data.world;
@@ -50,7 +75,19 @@ async function refresh(){
   visitStart??=world.lastSimulatedAt;
   const recap=document.querySelector('#visit-recap'),storyNames=new Map(world.people.map(p=>[p.id,p.name]));
   if(recap){const fragment=document.createDocumentFragment(),recent=world.events.filter(e=>e.at>=visitStart&&describeStory(e,storyNames)).slice(-5).reverse();for(const event of recent){const p=document.createElement('p');p.textContent=describeStory(event,storyNames);fragment.append(p)}if(!recent.length){const p=document.createElement('p');p.textContent='Las historias que ocurran mientras miras aparecerán aquí.';fragment.append(p)}recap.replaceChildren(fragment)}
-  document.querySelector('#watch-story').disabled=!world.people.some(p=>p.action?.id==='charlar'||p.action?.meetingId);
+  document.querySelector('#watch-story').disabled=!world.people.some(p=>p.action?.id==='charlar'||p.action?.meetingId||p.action?.planId);
+  const agenda=document.querySelector('#neighbourhood-agenda');
+  const plans=Object.values(world.plans??{}).filter(p=>['scheduled','travelling','active'].includes(p.status))
+   .sort((a,b)=>a.scheduledAt-b.scheduledAt);
+  agenda.hidden=!plans.length;
+  const entries=plans.map(plan=>{
+   const li=document.createElement('li');
+   const time=new Intl.DateTimeFormat('es-ES',{timeZone:'UTC',hour:'2-digit',minute:'2-digit'}).format(plan.scheduledAt);
+   const phase={scheduled:'Acordado',travelling:'En camino',active:'En curso'}[plan.status];
+   li.textContent=phase+' · '+time+' · '+plan.participants.map(id=>storyNames.get(id)).join(' y ')+' · '+activities[plan.kind].label;
+   return li;
+  });
+  agenda.querySelector('ul').replaceChildren(...entries);
   const gossip=document.querySelector('#gossip-highlights');
   if(gossip){const wasOpen=Boolean(gossip.querySelector('details')?.open),stats=neighbourhoodHighlights(world),cards=document.createDocumentFragment();
    for(const [icon,title,entry,unit,empty] of [['✦','MEJOR ROLLO',stats.friendship,'amistad','Todavía no hay amistades registradas.'],['⚡','TENSIÓN',stats.tension,'tensión','Por ahora, reina la paz.']]){
@@ -85,21 +122,22 @@ async function refresh(){
    const needs=document.createElement('p');needs.textContent=Object.entries(person.needs).map(([k,v])=>(labels[k]||k)+' '+Math.round(v)).join(' · ');card.append(needs);
    const relations=Object.entries(person.relationships||{}).sort((a,b)=>b[1].friendship-a[1].friendship).slice(0,3);
    const friends=document.createElement('p');friends.textContent=relations.length?'Relaciones: '+relations.map(([id,r])=>(names.get(id)||'Vecino')+' (amistad '+Math.round(r.friendship)+', tensión '+Math.round(r.tension)+')').join(' · '):'Todavía no tiene relaciones registradas.';card.append(friends);
-   const memories=(person.memories||[]).slice(-2).reverse(),memory=document.createElement('p');
-   memory.textContent=memories.length?'Recuerdos: '+memories.map(m=>({prank:'una broma con ',repair:'se reconcilió con ',rejection:'recibió una negativa de ',invitation:'quedó con '}[m.kind]||'charló con ')+(names.get(m.with)||'un vecino')).join(' · '):'Todavía no hay recuerdos.';card.append(memory);fragment.append(card);
+   const memories=relevantMemories(person,data.serverTime,{limit:2}),memory=document.createElement('p');
+   memory.textContent=memories.length?'Recuerdos: '+memories.map(({memory})=>describeMemory(memory,names)).join(' · '):'Todavía no hay recuerdos recientes.';
+   card.append(memory);fragment.append(card);
   }
   list.replaceChildren(fragment);
   const diary=document.createDocumentFragment();
-  const types=['invitation_accepted','invitation_declined','invitation_cancelled','story_finished','conversation_started','conversation_finished','kitchen_wait','repair_accepted','repair_declined','agreement_fulfilled','romance_proposed','romance_accepted','romance_rejected','relationship_ended','cleaning_finished'];
-  const recent=world.events.filter(e=>types.includes(e.type)).slice(-80).reverse();
+  const routineTypes=['conversation_started','conversation_finished','cleaning_finished'];
+  const recent=world.events.filter(e=>describeStory(e,names)||routineTypes.includes(e.type)).slice(-80).reverse();
   if(!recent.length){const row=document.createElement('p');row.textContent='Todavía no hay interacciones registradas.';diary.append(row)}
   for(const event of recent){
    const row=document.createElement('p'),who=(event.participants||[]).map(id=>names.get(id)||'Un vecino').join(' y ');
    const messages={conversation_started:who+' empiezan a hablar sobre '+event.topic+'.',conversation_finished:who+' terminaron de hablar sobre '+event.topic+'.',kitchen_wait:who+' tuvieron que organizarse con la cocina.',repair_accepted:who+' acordaron respetar el turno de cocina.',repair_declined:who+' necesitan más tiempo para resolver el desacuerdo.',agreement_fulfilled:who+' cumplieron el acuerdo de la cocina.',romance_proposed:who+' están hablando de su relación.',romance_accepted:who+' han decidido empezar una relación.',romance_rejected:who+' han decidido no empezar una relación.',relationship_ended:who+' han terminado su relación.',cleaning_finished:(names.get(event.personId)||'Un vecino')+' ha limpiado la cocina del '+(event.homeId||'piso').replace('piso-','piso ')+'.'};
-   const time=new Intl.DateTimeFormat('es-ES',{timeZone:'UTC',hour:'2-digit',minute:'2-digit'}).format(event.at);
+   const time=new Intl.DateTimeFormat('es-ES',{timeZone:'UTC',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(event.at);
    row.textContent=time+' · '+(describeStory(event,names)||messages[event.type]);diary.append(row);
   }
   events?.replaceChildren(diary);
  }catch{clock.textContent='No se ha podido conectar con el mundo compartido. Reintentando…'}
 }
-refresh();setInterval(refresh,5000);
+refresh();if(!qa)setInterval(refresh,5000);

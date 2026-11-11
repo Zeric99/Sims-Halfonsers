@@ -1,5 +1,5 @@
-import { simulationTime, clockRateAt } from './simulation/clock.js';
-import { speechAt } from './simulation/speech.js';
+import { simulationTime, clockRateAt, realElapsed } from './simulation/clock.js';
+import { createSpeechOverlay } from './simulation/speech-overlay.js';
 import { createMii } from './simulation/mii-rig.js';
 import { separatePeople } from './simulation/separation.js';
 import { isWalkable } from './simulation/navigation.js';
@@ -17,7 +17,7 @@ const fixedPolar=Math.atan2(Math.hypot(30,39),38);controls.minPolarAngle=fixedPo
 // Encuadre reproducible para las escenas aisladas del servidor de pruebas.
 if(location.hostname==='127.0.0.1'&&new URLSearchParams(location.search).has('qa')){
  const kind=new URLSearchParams(location.search).get('qa');
- const [x,z]=['sleep','desk'].includes(kind)?[-14,-10]:['bath','wash'].includes(kind)?[-15,-2]:[-11,-3];
+ const [x,z]=['sleep','desk','computer'].includes(kind)?[-14,-10]:['bath','wash'].includes(kind)?[-15,-2]:kind==='social'&&new URLSearchParams(location.search).get('phase')==='gym'?[9,17]:[-8,-4];
  controls.target.set(x,0,z);camera.position.set(x+30,38,z+39);camera.zoom=4.5;camera.updateProjectionMatrix();controls.update();
 }
 const ambient=new THREE.HemisphereLight(0xffffff,0x6c8061,2);scene.add(ambient);const sun=new THREE.DirectionalLight(0xfff3d8,2);sun.position.set(-15,35,20);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-27,right:27,top:27,bottom:-27,near:1,far:90});sun.shadow.bias=-0.0003;sun.shadow.normalBias=.035;scene.add(sun);
@@ -140,7 +140,7 @@ function setReaction(effect,kind){
 }
 const colors=[0xf08b76,0x6da5c9,0xbb93c7,0xe3b66a,0x84b699,0xd18aaf,0x819bcc,0xe9a37a,0x9dbb71,0xb58dc4,0xd5a264,0x6caeb0,0xca8c82,0xc6a6d6];const people=[];
 const faces={Pablo:'pablo-recortada',Snow:'snow-recortada',David:'david-recortada',Linkal:'linkal-recortada',Catalán:'catalan-recortada',Yaiza:'yaiza-recortada',May:'may-recortada',Mei:'mei-recortada',Arian:'arian',Delos:'delos',Lolo:'lolo',Eric:'eric',Adrián:'adrian',Aisuke:'aisuke'};const loader=new THREE.TextureLoader();
-roomPositions.forEach((room,i)=>{const g=new THREE.Group(),rig=createMii({color:colors[i],longHair:['May','Yaiza'].includes(room.name),faceUrl:faces[room.name]?'./caras/'+faces[room.name]+'.png':null}),avatar=rig.root;g.add(avatar);const tag=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTexture(room.name,72,256),transparent:true,depthTest:false,depthWrite:false}));tag.scale.set(2.4,1.2,1);tag.position.set(0,2.6,0);tag.renderOrder=2;g.add(tag);scene.add(g);g.position.set(room.x,0,room.z);const bubbleCanvas=document.createElement('canvas');bubbleCanvas.width=1024;bubbleCanvas.height=512;const bubbleTexture=new THREE.CanvasTexture(bubbleCanvas);const bubble=new THREE.Sprite(new THREE.SpriteMaterial({map:bubbleTexture,transparent:true,depthTest:false}));bubble.scale.set(3.2,1.6,1);bubble.position.set(0,3.85,0);bubble.visible=false;bubble.renderOrder=3;g.add(bubble);const reaction=makeReaction();g.add(reaction.ring,reaction.icon);people.push({g,avatar,tag,rig,chair:{x:room.x+.05,z:room.z-1.7},bed:{x:room.bedX,z:room.bedZ},reaction,bubble,bubbleCanvas,bubbleTexture,bubbleText:'',name:room.name,phase:i*.8,initial:{x:room.x,z:room.z}});});
+roomPositions.forEach((room,i)=>{const g=new THREE.Group(),rig=createMii({color:colors[i],longHair:['May','Yaiza'].includes(room.name),faceUrl:faces[room.name]?'./caras/'+faces[room.name]+'.png':null}),avatar=rig.root;g.add(avatar);const tag=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTexture(room.name,72,256),transparent:true,depthTest:false,depthWrite:false}));tag.scale.set(2.4,1.2,1);tag.position.set(0,2.6,0);tag.renderOrder=2;g.add(tag);scene.add(g);g.position.set(room.x,0,room.z);const reaction=makeReaction();g.add(reaction.ring,reaction.icon);people.push({g,avatar,tag,rig,chair:{x:room.x+.05,z:room.z-1.7},bed:{x:room.bedX,z:room.bedZ},reaction,name:room.name,phase:i*.8,initial:{x:room.x,z:room.z}});});
 // Una pulsación breve selecciona; arrastrar sigue controlando la cámara.
 const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();let press=null;
 renderer.domElement.addEventListener('pointerdown',e=>{press=e.button===0?{x:e.clientX,y:e.clientY,id:e.pointerId}:null});
@@ -160,7 +160,7 @@ let snapshot=null,clockBase=0,wallBase=0,receivedAt=0,clockRate=48,reactions=new
 function acceptWorld(detail){
  snapshot=detail.world;clockBase=detail.serverTime;wallBase=detail.serverWallTime??Date.now();receivedAt=performance.now();clockRate=detail.clockRate||48;
  const byName=new Map(snapshot.people.map(person=>[person.name,person]));
- const kinds={conversation_started:'social',conversation_finished:'social',kitchen_wait:'conflict',repair_declined:'conflict',repair_accepted:'good',agreement_fulfilled:'good',romance_accepted:'good',relationship_ended:'conflict',activity_interrupted:'urgent'};
+ const kinds={conversation_started:'social',conversation_finished:'social',kitchen_wait:'conflict',conflict_incident:'conflict',plan_missed:'conflict',agreement_broken:'conflict',plan_completed:'good',plan_started:'social',repair_declined:'conflict',repair_accepted:'good',agreement_fulfilled:'good',romance_accepted:'good',relationship_ended:'conflict',activity_interrupted:'urgent'};
  reactions=new Map();
  for(const e of snapshot.events??[]){const kind=kinds[e.type];if(!kind||(e.type==='activity_interrupted'&&e.reason!=='necesidad urgente'))continue;
   for(const id of new Set([e.personId,...(e.participants??[])].filter(Boolean)))reactions.set(id,{kind,at:e.at});
@@ -170,16 +170,9 @@ function acceptWorld(detail){
 }
 window.addEventListener('shared-world',event=>acceptWorld(event.detail));
 if(window.sharedWorld)acceptWorld(window.sharedWorld);
-function drawSpeech(p,phrase){
- p.bubble.visible=Boolean(phrase);if(!phrase||phrase===p.bubbleText)return;
- const ctx=p.bubbleCanvas.getContext('2d');ctx.clearRect(0,0,1024,512);
- ctx.fillStyle='#fffefa';ctx.strokeStyle='#101820';ctx.lineWidth=14;ctx.lineJoin='round';
- ctx.beginPath();ctx.moveTo(115,20);ctx.lineTo(909,20);ctx.quadraticCurveTo(1004,20,1004,105);ctx.lineTo(1004,344);ctx.quadraticCurveTo(1004,405,919,405);ctx.lineTo(530,405);ctx.quadraticCurveTo(489,470,407,486);ctx.quadraticCurveTo(432,448,430,405);ctx.lineTo(105,405);ctx.quadraticCurveTo(20,405,20,325);ctx.lineTo(20,105);ctx.quadraticCurveTo(20,20,115,20);ctx.closePath();ctx.fill();ctx.stroke();
- ctx.fillStyle='#18222b';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='700 64px system-ui, sans-serif';
- const lines=[''];for(const word of phrase.split(' ')){const k=lines.length-1,candidate=lines[k]?lines[k]+' '+word:word;if(ctx.measureText(candidate).width>900&&lines[k]&&lines.length<4)lines.push(word);else lines[k]=candidate}
- const fontSize=lines.length>3?48:lines.length>2?55:64;ctx.font='700 '+fontSize+'px system-ui, sans-serif';lines.forEach((line,i)=>ctx.fillText(line,512,210+(i-(lines.length-1)/2)*(fontSize+10),900));
- p.bubbleTexture.needsUpdate=true;p.bubbleText=phrase;
-}
+const projectedSpeech=new THREE.Vector3();
+const renderSpeech=createSpeechOverlay(root,people,anchor=>
+ projectedSpeech.set(anchor.x,anchor.y,anchor.z).project(camera));
 function positionAt(action,fallback,now){
  const meal=mealPosition(action,now);if(meal)return meal;
  const route=action?.route;if(!route?.length)return fallback;
@@ -194,19 +187,18 @@ function resize(){const w=root.clientWidth,h=root.clientHeight;renderer.setPixel
 let followName=null;const followTarget=new THREE.Vector3(),followDelta=new THREE.Vector3();
 window.addEventListener('resident-follow',event=>{followName=event.detail.name;});
 let lastFrame=0;
-function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?Math.min(.05,(t-lastFrame)/1000):0;lastFrame=t;if(snapshot){const byName=new Map(snapshot.people.map(p=>[p.name,p]));const now=snapshot.simulationClock?simulationTime(snapshot.simulationClock,wallBase+performance.now()-receivedAt):clockBase+(performance.now()-receivedAt)*clockRate;clockRate=snapshot.simulationClock?clockRateAt(snapshot.simulationClock,now):clockRate;const hour=new Date(now).getUTCHours(),night=hour<7||hour>=23;scene.background.setHex(night?0x253952:0xb8d99c);ambient.intensity=night?.8:2;sun.intensity=night?.65:2;const placements=[];for(const p of people){const state=byName.get(p.name);if(!state)continue;
+function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?Math.min(.05,(t-lastFrame)/1000):0;lastFrame=t;let now=0;if(snapshot){const byName=new Map(snapshot.people.map(p=>[p.name,p]));now=snapshot.simulationClock?simulationTime(snapshot.simulationClock,wallBase+performance.now()-receivedAt):clockBase+(performance.now()-receivedAt)*clockRate;clockRate=snapshot.simulationClock?clockRateAt(snapshot.simulationClock,now):clockRate;const hour=new Date(now).getUTCHours(),night=hour<7||hour>=23;scene.background.setHex(night?0x253952:0xb8d99c);ambient.intensity=night?.8:2;sun.intensity=night?.65:2;const placements=[];for(const p of people){const state=byName.get(p.name);if(!state)continue;
  const latest=reactions.get(state.id),age=latest?now-latest.at:Infinity;
  const signal=latest&&age>=0&&age<clockRate*10000?latest.kind:(state.action?.id==='dormir'&&now>=state.action.start+(state.action.travelMs||0)?'sleep':null);
  setReaction(p.reaction,signal);
  if(signal){const pulse=.9+.1*Math.sin(t*.006+p.phase);p.reaction.ring.scale.setScalar(pulse);p.reaction.ring.material.opacity=.30+.12*(1+Math.sin(t*.006+p.phase));p.reaction.icon.position.y=3.35+Math.sin(t*.002+p.phase)*.08}
  const conversation=state.action?.conversationId&&snapshot.conversations?.[state.action.conversationId];
- drawSpeech(p,speechAt(conversation,state.id,now));
- if(p.bubble.visible)p.reaction.icon.visible=false;
+ if(conversation&&now>=conversation.start&&now<conversation.end)p.reaction.icon.visible=false;
  const where=positionAt(state.action,state.position??p.initial,now);
  // Pequeños desplazamientos compartidos durante actividades despiertas.
  const action=state.action,awake=action&&action.id!=='dormir';
  const arrived=action&&now>=action.start+(action.travelMs||0);
- const training=action?.activity==='gimnasio'&&arrived;
+ const training=['gimnasio','gym'].includes(action?.activity)&&arrived;
  const stage=mealStage(action,now),mealEating=stage?.kind==='eating';
  const sofaSeated=Boolean(arrived&&action?.seat);
  const seated=(arrived&&['jugar','estudiar'].includes(action?.id))||mealEating||sofaSeated;
@@ -222,10 +214,14 @@ function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?
  const x=where.x+(p.bed.x-where.x)*lie+(seat.x-where.x)*seatBlend+sway,z=where.z+(p.bed.z-where.z)*lie+(seat.z-where.z)*seatBlend;
  const bob=0;
  placements.push({p,x,z,bob,fixed:!!sleeping||!!seated,walking:!!where.walking});
- if(sleeping)p.g.rotation.y=0;else if(mealEating)p.g.rotation.y=Math.PI/2;else if(seated)p.g.rotation.y=Math.PI;else if(['fridge','cooking'].includes(stage?.kind)||(arrived&&['asearse','limpiar'].includes(action?.id)))p.g.rotation.y=0;else if(where.angle!==undefined)p.g.rotation.y=where.angle;else if(sway>0)p.g.rotation.y=cycle<.25?Math.PI/2:-Math.PI/2;
+ if(sleeping)p.g.rotation.y=0;else if(mealEating)p.g.rotation.y=Math.PI/2;else if(seated)p.g.rotation.y=Math.PI;else if(['fridge','cooking'].includes(stage?.kind)||(arrived&&(['asearse','limpiar'].includes(action?.id)||action?.activity==='cooking')))p.g.rotation.y=0;else if(conversation&&!training){
+  const other=snapshot.people.find(q=>q.id!==state.id&&conversation.participants.includes(q.id));
+  const target=other?.action?.route?.at(-1);
+  if(target)p.g.rotation.y=Math.atan2(target.x-where.x,target.z-where.z);
+ }else if(where.angle!==undefined)p.g.rotation.y=where.angle;else if(sway>0)p.g.rotation.y=cycle<.25?Math.PI/2:-Math.PI/2;
  p.avatar.position.set(0,1.06*lie-.18*seatBlend,.9*lie);p.avatar.rotation.x=-Math.PI/2*lie;p.avatar.scale.setScalar(1-.22*lie);p.rig.setSleeping(lie);
  const eating=action?.id==='comer'&&(mealEating||(!stage&&arrived&&now>=action.start+(action.travelMs||0)+(action.meal?.prepareMs||0)));
- const anim=sleeping?'idle':where.walking?'walk':arrived&&action?.id==='asearse'?'wash':stage?.kind==='fridge'?'reach':stage?.kind==='cooking'?'cook':action?.id==='charlar'?'talk':arrived&&action?.id==='limpiar'?'clean':arrived&&action?.id==='leer'?'read':training?'gym':action?.id==='fumar'&&arrived?'smoke':mealEating?'eat':sofaSeated?'sit':seated?(action.id==='estudiar'?'study':'computer'):eating?'eatStanding':'idle';
+ const anim=sleeping?'idle':where.walking?'walk':arrived&&action?.id==='asearse'?'wash':stage?.kind==='fridge'?'reach':stage?.kind==='cooking'?'cook':training?'gym':action?.activity==='cooking'?'cook':action?.activity==='games'?'gamepad':action?.id==='charlar'&&!sofaSeated?'talk':arrived&&action?.id==='limpiar'?'clean':arrived&&action?.id==='leer'?'read':action?.id==='fumar'&&arrived?'smoke':mealEating?'eat':sofaSeated?'sit':seated?(action.id==='estudiar'?'study':'computer'):eating?'eatStanding':'idle';
  p.rig.play(anim);
 
  }
@@ -239,24 +235,34 @@ function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?
   p.previousRendered={x:spot.x,z:spot.z};
  }
  }
- // Separar en pantalla los bocadillos simultáneos sin mover a los vecinos.
+ // Separar nombres en pantalla sin mover a los vecinos.
  const occupied=[];camera.updateMatrixWorld();
- for(const p of people){
-  if(!p.bubble.visible)continue;
-  p.bubble.position.y=3.85;p.g.updateMatrixWorld(true);
-  const project=()=>{const v=new THREE.Vector3();p.bubble.getWorldPosition(v);return v.project(camera)};
-  let pos=project(),up=new THREE.Vector3();p.bubble.getWorldPosition(up);up.y+=1;up.project(camera);
-  const perUnit=Math.abs(up.y-pos.y)||.001,halfW=3.2*camera.zoom/(camera.right-camera.left),halfH=1.6*camera.zoom/(camera.top-camera.bottom);
+ function placeOverlay(p,sprite,height,width,visibleHeight){
+  sprite.position.y=height;
+  p.g.updateMatrixWorld(true);
+  const project=()=>sprite.getWorldPosition(new THREE.Vector3()).project(camera);
+  let pos=project(),up=sprite.getWorldPosition(new THREE.Vector3());
+  up.y+=1;up.project(camera);
+  const perUnit=Math.abs(up.y-pos.y)||.001;
+  const halfW=width*camera.zoom/(camera.right-camera.left);
+  const halfH=visibleHeight*camera.zoom/(camera.top-camera.bottom);
   for(let pass=0;pass<occupied.length;pass++){
    const overlap=occupied.find(r=>Math.abs(pos.x-r.x)<halfW+r.w&&Math.abs(pos.y-r.y)<halfH+r.h);
    if(!overlap)break;
-   p.bubble.position.y+=(overlap.y+overlap.h+halfH-pos.y+.02)/perUnit;
+   sprite.position.y+=(overlap.y+overlap.h+halfH-pos.y+.02)/perUnit;
    p.g.updateMatrixWorld(true);pos=project();
   }
   occupied.push({x:pos.x,y:pos.y,w:halfW,h:halfH});
  }
+ for(const p of people)placeOverlay(p,p.tag,2.6,Math.min(2.4,.29*p.name.length),.56);
  if(followName){const target=people.find(p=>p.name===followName);if(target){followTarget.set(target.g.position.x,.8,target.g.position.z);followDelta.copy(followTarget).sub(controls.target).multiplyScalar(Math.min(1,frameSeconds*5));controls.target.add(followDelta);camera.position.add(followDelta)}}
- controls.update();renderer.render(scene,camera)}requestAnimationFrame(animate);
+ controls.update();
+ camera.updateMatrixWorld();
+ renderSpeech(snapshot,now,end=>snapshot.simulationClock
+  ?realElapsed(snapshot.simulationClock,end,now):(now-end)/clockRate);
+ renderer.render(scene,camera);
+}
+requestAnimationFrame(animate);
 
 
 

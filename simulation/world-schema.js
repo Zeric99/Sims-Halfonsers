@@ -27,9 +27,23 @@ export function validateWorldEnvelope(world,{schemaVersion,simulationVersion}){
   const profile=person.profile;
   if(!Array.isArray(profile.interests)||profile.interests.some(x=>typeof x!=='string')||!object(profile.traits)||Object.values(profile.traits).some(x=>!Number.isFinite(x)||x<0||x>1)||(world.simulationVersion>=2&&TRAITS.some(key=>!Number.isFinite(profile.traits[key])))||![profile.sleepHour,profile.wakeHour].every(h=>Number.isFinite(h)&&h>=0&&h<24))throw new TypeError('Perfil inválido');
   if(person.learned!=null&&!object(person.learned))throw new TypeError('Aprendizaje inválido');
-  for(const field of ['skills','preferences'])if(person.learned?.[field]!=null&&!object(person.learned[field]))throw new TypeError('Aprendizaje inválido');
+  for(const field of ['skills','preferences','contexts','recipes'])if(person.learned?.[field]!=null&&!object(person.learned[field]))throw new TypeError('Aprendizaje inválido');
+  if(person.learned?.recipes&&Object.values(person.learned.recipes).some(value=>!Number.isInteger(value)))throw new TypeError('Práctica de recetas inválida');
+  if(person.memories!=null&&(!Array.isArray(person.memories)||person.memories.some(m=>!object(m))))
+   throw new TypeError('Recuerdos inválidos');
+  if(person.goal!=null){
+   const goal=person.goal;
+   if(!object(goal)||typeof goal.id!=='string'||!['recipe','practice','plan','repair'].includes(goal.kind)
+    ||!['active','completed','expired','cancelled'].includes(goal.status)||!Number.isInteger(goal.target)||goal.target<1
+    ||!Number.isInteger(goal.progress)||goal.progress<0||goal.progress>goal.target
+    ||!Number.isFinite(goal.priority)||goal.priority<0||goal.priority>.2
+    ||!Number.isFinite(goal.createdAt)||!Number.isFinite(goal.expiresAt)||goal.expiresAt<=goal.createdAt)
+    throw new TypeError('Objetivo inválido');
+  }
+  if(person.reflection!=null&&(!object(person.reflection)||!Number.isFinite(person.reflection.at)))
+   throw new TypeError('Reflexión inválida');
   if(person.relationships!=null){if(!object(person.relationships))throw new TypeError('Relaciones inválidas');for(const r of Object.values(person.relationships)){if(!object(r))throw new TypeError('Relación inválida');for(const [key,min] of [['friendship',-100],['trust',0],['tension',0],['familiarity',0],['romanticInterest',0]])if(r[key]!=null&&(!Number.isFinite(r[key])||r[key]<min||r[key]>100))throw new TypeError('Relación inválida')}}
-  for(const [key,min,max] of [['skills',0,100],['preferences',-1,1]])if(person.learned?.[key]&&Object.values(person.learned[key]).some(v=>!Number.isFinite(v)||v<min||v>max))throw new TypeError('Aprendizaje inválido');
+  for(const [key,min,max] of [['skills',0,100],['preferences',-1,1],['contexts',-1,1],['recipes',0,100]])if(person.learned?.[key]&&Object.values(person.learned[key]).some(v=>!Number.isFinite(v)||v<min||v>max))throw new TypeError('Aprendizaje inválido');
   for(const key of ['saciedad','energia','higiene','compania','diversion','bano']){
    if(key==='bano'&&world.simulationVersion<4&&person.needs[key]===undefined)continue;
    const value=person.needs[key];
@@ -60,6 +74,19 @@ export function validateWorldEnvelope(world,{schemaVersion,simulationVersion}){
 
   }
   ids.add(person.id);
+ }
+ if(world.plans!=null){
+  if(!object(world.plans))throw new TypeError('Agenda inválida');
+  for(const [id,plan] of Object.entries(world.plans)){
+   if(!object(plan)||plan.id!==id||!['games','anime','cooking','gym'].includes(plan.kind)
+    ||!['scheduled','travelling','active','declined','completed','cancelled','missed'].includes(plan.status)
+    ||!Number.isFinite(plan.scheduledAt)||!Array.isArray(plan.participants)||plan.participants.length!==2
+    ||plan.participants[0]===plan.participants[1]||plan.participants.some(id=>!ids.has(id)))throw new TypeError('Plan inválido');
+   if(['travelling','active'].includes(plan.status)&&(!Number.isFinite(plan.arriveBy)
+    ||!Array.isArray(plan.keys)||plan.keys.some(key=>typeof key!=='string')
+    ||(plan.seats!=null&&(!Array.isArray(plan.seats)||plan.seats.length!==2||plan.seats.some(seat=>!validPoint(seat))))))
+    throw new TypeError('Destino del plan inválido');
+  }
  }
  return true;
 }

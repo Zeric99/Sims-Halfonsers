@@ -1,11 +1,14 @@
-import {findRoute} from './navigation.js';
+import {activeGoal} from './goals.js';
+import {findRoute,canTalkAt} from './navigation.js';
 import {DAY_RATE} from './clock.js';
 import {openConversation} from './social.js';
-import {socialBias,remember} from './memory.js';
+import {remember} from './memory.js';
+import {hasUpcomingPlan} from './plans.js';
+import {affinity,consent} from './relationships.js';
 const MIN=60000;
 function onRoute(action,at){const route=action.route,distances=route.slice(1).map((p,i)=>Math.hypot(p.x-route[i].x,p.z-route[i].z));let left=distances.reduce((a,b)=>a+b,0)*Math.max(0,Math.min(1,(at-action.start)/(action.travelMs||1)));for(let i=0;i<distances.length;i++){if(distances[i]>0&&left<=distances[i]){const q=left/distances[i];return {x:route[i].x+(route[i+1].x-route[i].x)*q,z:route[i].z+(route[i+1].z-route[i].z)*q}}left-=distances[i]}return route.at(-1)}
 function log(world,type,at,extra){const event={id:world.worldId+':'+(++world.eventSequence),type,at,...extra};world.events.push(event);if(world.events.length>500)world.events.shift();return event}
-const ready=(p,at)=>p.action&&['leer','ver_tv','descansar','pasear','practicar'].includes(p.action.id)&&p.action.activity!=='gimnasio'&&!p.action.meetingId&&at>=p.action.start+(p.action.travelMs||0)+5*MIN&&p.needs.energia>25&&p.needs.saciedad>25&&p.needs.bano>25&&at-(p.lastSocialAt??-Infinity)>3*3600000;
+const ready=(world,p,at)=>!hasUpcomingPlan(world,p,at)&&p.action&&['leer','ver_tv','descansar','pasear','practicar'].includes(p.action.id)&&p.action.activity!=='gimnasio'&&!p.action.meetingId&&!p.action.planId&&at>=p.action.start+(p.action.travelMs||0)+5*MIN&&p.needs.energia>25&&p.needs.saciedad>25&&p.needs.bano>25&&at-(p.lastSocialAt??-Infinity)>3*3600000;
 export function socialPulse(world,at,random){
  world.meetings??={};
  for(const meeting of Object.values(world.meetings)){
@@ -19,14 +22,16 @@ export function socialPulse(world,at,random){
  }
  const old=Object.values(world.meetings).filter(m=>m.finished);for(const m of old.slice(0,Math.max(0,old.length-30)))delete world.meetings[m.id];
  for(const a of world.people){
-  if(!ready(a,at)||a.needs.compania>70||random()>.025)continue;
-  const candidates=world.people.filter(b=>b.id!==a.id&&ready(b,at)).map(b=>({b,score:(a.relationships?.[b.id]?.friendship||0)/100-(a.relationships?.[b.id]?.tension||0)/100+socialBias(a,b.id,at)*.1+(a.homeId===b.homeId?.2:0)})).sort((x,y)=>y.score-x.score);
+  const goal=activeGoal(a,at);
+  const repair=goal?.kind==='repair'&&world.people.some(other=>other.id===goal.with&&ready(world,other,at));
+  if(!ready(world,a,at)||(!repair&&a.needs.compania>70)||random()>(repair?.045:.025))continue;
+  const candidates=world.people.filter(b=>b.id!==a.id&&ready(world,b,at)).map(b=>({b,score:affinity(a,b,at)+(a.homeId===b.homeId?.2:0)+(repair&&goal.with===b.id?.5:0)})).sort((x,y)=>y.score-x.score);
   const b=candidates[0]?.b;if(!b)continue;
   const posA=a.action.route?.at(-1)??a.position,posB=b.action.route?.at(-1)??b.position;if(!posA||!posB)continue;
   // Buscar un punto accesible al lado del invitado, nunca teletransportarlo.
-  const route=findRoute(posA,{x:posB.x+1,z:posB.z});if(!route.length||Math.hypot(route.at(-1).x-posB.x,route.at(-1).z-posB.z)>2)continue;
+  const route=findRoute(posA,{x:posB.x+1,z:posB.z});if(!route.length||!canTalkAt(route.at(-1),posB))continue;
   a.lastSocialAt=b.lastSocialAt=at;
-  const chance=Math.max(.05,Math.min(.9,.3+.35*b.profile.traits.sociabilidad+(100-b.needs.compania)/250-(b.relationships?.[a.id]?.tension||0)/120+socialBias(b,a.id,at)*.05));
+  const chance=consent(b,a,at);
   const accepted=random()<chance,event=log(world,accepted?'invitation_accepted':'invitation_declined',at,{participants:[a.id,b.id],reason:'charlar'});
   a.intention={text:'Buscar a '+b.name+' para hablar',at};b.intention={text:accepted?'Hablar con '+a.name:'Prefiere seguir con lo suyo',at};
   remember(a,{eventId:event.id,kind:accepted?'invitation':'rejection',with:b.id,at,valence:accepted?1:-1,importance:1});

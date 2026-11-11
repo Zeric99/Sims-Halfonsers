@@ -37,6 +37,16 @@ export function createMii({color=0x648cc4,faceUrl=null,longHair=false}={}){
  const book=new THREE.Group(),page=new THREE.MeshStandardMaterial({color:0xfff4d7});
  for(const side of [-1,1]){const sheet=new THREE.Mesh(new THREE.BoxGeometry(.23,.035,.31),page);sheet.position.x=side*.12;sheet.rotation.z=side*.12;book.add(sheet)}
  book.position.set(0,.96,.46);root.add(book);
+ const controller=new THREE.Group();
+ const controllerBody=new THREE.Mesh(new THREE.BoxGeometry(.38,.09,.22),shoe);
+ controller.add(controllerBody);
+ for(const [x,color] of [[-.1,0xc0cad3],[.08,0x7cc4b8],[.14,0xe6a894]]){
+  const button=new THREE.Mesh(new THREE.CylinderGeometry(.024,.024,.018,10),new THREE.MeshStandardMaterial({color}));
+  button.position.set(x,.05,0);controller.add(button);
+ }
+ controller.position.set(0,-.34,.09);
+ root.getObjectByName('rightElbow').add(controller);
+ controller.visible=false;
  const cigarette=new THREE.Group();
  const stick=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,.19,8),new THREE.MeshStandardMaterial({color:0xf3eddf}));stick.rotation.x=Math.PI/2;cigarette.add(stick);
  const tip=new THREE.Mesh(new THREE.SphereGeometry(.023,8,6),new THREE.MeshBasicMaterial({color:0xe7753d}));tip.position.z=.10;cigarette.add(tip);
@@ -87,6 +97,10 @@ smoke.visible=smoking;if(!smoking){smokeTime=0;return}smokeTime+=dt;root.updateW
   clip('read',[['leftShoulder',[-.7,-.7,-.7,-.7,-.7]],['rightShoulder',[-.7,-.8,-.7,-.6,-.7]],['leftElbow',[-.7,-.7,-.7,-.7,-.7]],['rightElbow',[-.7,-.9,-.7,-.5,-.7]],['head',[.12,.15,.12,.1,.12]]]),
   clip('sit',[['leftHip',sitting],['rightHip',sitting],['leftKnee',knees],['rightKnee',knees]]),
   clip('eat',[['leftHip',sitting],['rightHip',sitting],['leftKnee',knees],['rightKnee',knees],['rightShoulder',[-.6,-.8,-.6,-.35,-.6]],['rightElbow',[-.8,-1.45,-.8,-.4,-.8]]]),
+  clip('gamepad',[
+   ['leftShoulder',[-.65,-.68,-.65,-.62,-.65]],['rightShoulder',[-.65,-.62,-.65,-.68,-.65]],
+   ['leftElbow',[-.9,-.96,-.9,-.84,-.9]],['rightElbow',[-.9,-.84,-.9,-.96,-.9]]
+  ]),
   clip('gym',[['leftShoulder',[-.35,-.8,-1.2,-.8,-.35]],['rightShoulder',[-.35,-.8,-1.2,-.8,-.35]],['leftElbow',[-.15,-.45,-.7,-.45,-.15]],['rightElbow',[-.15,-.45,-.7,-.45,-.15]]]),
   clip('smoke',[['rightShoulder',[-.35,-.75,-.8,-.4,-.35]],['rightElbow',[-.4,-1.3,-1.4,-.5,-.4]]]),
   clip('eatStanding',[['rightShoulder',[-.4,-.9,-.4,-.2,-.4]],['rightElbow',[-.4,-1.35,-.4,-.2,-.4]]]),
@@ -102,6 +116,6 @@ smoke.visible=smoking;if(!smoking){smokeTime=0;return}smokeTime+=dt;root.updateW
  for(const animation of clips.filter(c=>['eat','study','computer','smoke'].includes(c.name)))animation.tracks.push(new THREE.NumberKeyframeTrack('rightWrist.rotation[z]',times,[0,.15,0,-.12,0]));
  for(const c of clips){for(const t of c.tracks)t.setInterpolation(THREE.InterpolateSmooth);if(c.name!=='walk')c.duration=1.8;for(const t of c.tracks)if(c.name!=='walk')for(let i=0;i<t.times.length;i++)t.times[i]*=1.8}
  const mixer=new THREE.AnimationMixer(root),actions=Object.fromEntries(clips.map(c=>[c.name,mixer.clipAction(c)]));let current=null;
- function play(name){walking=name==='walk';smoking=name==='smoke';plate.position.y=name==='eat'?.98:.9;plate.visible=name==='eatStanding'||name==='eat';book.visible=name==='study'||name==='read';cigarette.visible=name==='smoke';for(const weight of weights)weight.visible=name==='gym';const next=actions[name]??actions.idle;if(next===current)return;if(current)current.fadeOut(.2);next.reset().setEffectiveWeight(1).fadeIn(.2).play();current=next}
+ function play(name){controller.visible=name==='gamepad';walking=name==='walk';smoking=name==='smoke';plate.position.y=name==='eat'?.98:.9;plate.visible=name==='eatStanding'||name==='eat';book.visible=name==='study'||name==='read';cigarette.visible=name==='smoke';for(const weight of weights)weight.visible=name==='gym';const next=actions[name]??actions.idle;if(next===current)return;if(current)current.fadeOut(.2);next.reset().setEffectiveWeight(1).fadeIn(.2).play();current=next}
  play('idle');return {root,mixer,play,update,setSleeping};
 }

@@ -19,7 +19,7 @@ Fuente: barrio-vivo-especificacion.md (4 noviembre 2026), con las aclaraciones p
 - [x] Suspensión de sucesos sin visitas.
 - [ ] Trayectos reales por puertas y objetos; las rutas y gestos actuales son provisionales. Se han comprobado 56 rutas desde habitaciones hacia destinos habituales contra la rejilla de obstáculos; En la rama principal se ha ajustado la rejilla para incluir el soporte de pesas y mejorar las medidas de camas, sillas y baño; se han comprobado rutas desde las habitaciones al gimnasio. Sigue pendiente la comprobación visual de los trayectos y objetos de la escena real.
 - [ ] Comprobación integral con dos clientes y reinicios. Dos pestañas de producción mostraron el mismo diario y un cliente recuperó el estado al recargar; faltan pruebas con Neon de concurrencia, desconexión y reinicio del servicio. Las pruebas con almacenamiento simulado fuerzan dos lecturas simultáneas, verifican el reintento sin pérdida ni duplicación y reconstruyen un cliente desde el estado serializado.
-- [ ] Convivencia completa: hay conversaciones, relaciones y un conflicto básico por turnos de cocina; faltan causas y planes más variados y validación integral del romance. Este trabajo corresponde a la fase 2 y no está terminado.
+- [x] Fase 2 de convivencia implementada y verificada en el servidor local. Incluida en la entrega de convivencia, diálogos y evolución.
 
 ## Preparación para la fase 1
 - Las ramas de personajes, gimnasio y fichas están integradas y publicadas en producción. La batería contiene 64 pruebas; dos pestañas de producción mostraron el mismo diario y un cliente recuperó el estado al recargar. El servidor local usa memoria temporal y no verifica Neon ni el envío real del chat.
@@ -47,18 +47,26 @@ Evidencia detallada en [FASE1-VERIFICACION.md](FASE1-VERIFICACION.md). Cierre de
 - [ ] Ejecutar estas comprobaciones contra Neon real y varias instancias: concurrencia, desconexión/reconexión, reinicio y persistencia de chat/frases. No se han marcado como realizadas con Neon.
 - [ ] Publicar únicamente cuando lo indique el usuario y comprobar el commit final en Vercel.
 
-## Fase 2: convivencia
-- [ ] Encuentros con consentimiento y conversación única por pareja. Base provisional con personas disponibles y próximas, bocadillos y diario; faltan invitaciones y consentimiento explícito más elaborado.
-- [ ] Amistad, confianza, tensión y familiaridad dirigidas; efectos acotados y rendimientos decrecientes. Amistad, confianza y familiaridad básicas implementadas; faltan conflictos y comportamiento más rico.
-- [ ] Conflictos motivados por sucesos, reparación y consecuencias de acuerdos. Hay una primera causa por espera de cocina y reparación condicionada a liberar el recurso; faltan otras causas y pruebas integrales.
-- [ ] Romance ficticio solo si está configurado; interés unilateral y reciprocidad, rechazo y ruptura gradual. Módulo de propuestas probado aisladamente; no está integrado ni activo.
-- [ ] Planes y compromisos domésticos con aceptación o rechazo.
+## Fase 2: convivencia — implementada y probada en local
 
-## Fase 3: memoria y evolución
-- [ ] Recuerdos subjetivos basados en eventos, relevancia y límites. Existen recuerdos básicos de conversaciones; falta ampliar su relevancia y uso.
-- [ ] Objetivos y reflexión; habilidades y preferencias con cambios acotados.
-- [ ] Módulo de cuestionario versionado, preguntas invertidas, omitidas y validación.
-- [ ] Conservar progreso y recuerdos al modificar perfiles.
+- [x] Encuentros consentidos y una conversación compartida. Los vecinos llegan por rutas accesibles y hablan cuando están juntos.
+- [x] Amistad, confianza, familiaridad y tensión dirigidas. Influyen en a quién buscan y en si aceptan. Los efectos se acotan, se reducen al repetir tema y tienen umbrales distintos para entrar y salir de una etiqueta de relación.
+- [x] Planes domésticos para jugar, cocinar, ver anime y entrenar. Propuesta, rechazo o cambio de hora, agenda, rutas, reservas, ejecución, cancelación y plantón.
+- [x] Conflictos por turnos de cocina, ruido, platos, bromas y plantones. La reparación tiene una petición concreta. Cumplir una conducta recupera parte de la confianza y un incumplimiento deja constancia en el diario.
+- [x] Romance recíproco opcional, con interés por dirección, negativas con espera y ruptura por problemas acumulados. Se prueba con perfiles ficticios configurados para ello. Los vecinos del reparto tienen el romance desactivado por defecto.
+- [x] Agenda, fichas y diario muestran el hilo del encuentro. Los bocadillos compartidos reflejan el tema y el mapa muestra la actividad.
+
+Verificación local del 11 de noviembre de 2026: 90 pruebas pasadas, tres simulaciones de siete días (semillas 19, 42 y 73184) con 147 planes completados entre ellas, sin compromisos solapados ni pérdida de las reservas activas. Se comprobó la reanudación desde JSON, la ruptura en un escenario dirigido y los encuentros en navegador. La prueba del navegador está disponible en http://127.0.0.1:8767/ y la escena aislada en http://127.0.0.1:8767/?qa=social&phase=anime.
+
+## Fase 3: memoria y evolución — implementada y probada en local
+
+- [x] Recuerdos subjetivos ligados a sucesos, con emoción, importancia, caducidad y límite de 50 por vecino. Su relevancia influye en la afinidad y las decisiones sociales.
+- [x] Reflexión nocturna con una experiencia positiva, un problema pendiente si existe y un objetivo. Los objetivos influyen en la actividad o compañía que elige cada vecino y registran su progreso, cumplimiento, caducidad o cancelación.
+- [x] Habilidades y preferencias graduales. La práctica de recetas acorta la preparación, los planes dejan preferencias según actividad y compañía y las quejas repetidas por el volumen pueden enseñar a bajar la tele en ese contexto.
+- [x] Cuestionario de personalidad versionado, con preguntas invertidas, respuestas opcionales y validación. El módulo aplica el perfil sin borrar identidad, estado, recuerdos, relaciones, habilidades ni objetivos. La pantalla del cuestionario sigue prevista para más adelante.
+- [x] La ficha muestra los recuerdos relevantes, la reflexión, el objetivo y las habilidades.
+
+Verificación local con 100 pruebas y tres simulaciones de siete días. Se comprobó el resultado en la ficha de Eric después de un plan con Linkal y la carga de la partida local anterior. Escena reproducible en http://127.0.0.1:8767/?qa=evolution.
 
 ## Fase 4: experiencia y verificación
 - [ ] Hora, actividad, diálogos legibles, ficha y diario; escena nocturna.

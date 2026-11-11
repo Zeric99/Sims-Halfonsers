@@ -1,17 +1,19 @@
 // Núcleo determinista independiente de la representación y del alojamiento.
 import { DAY_RATE } from './clock.js';
+import {activeGoal, advanceGoal, expireGoals, goalBonus, reflectAtNight} from './goals.js';
 import {recipeFor} from './recipes.js';
 import {freeResource} from './resources.js';
 import {socialPulse} from './autonomy.js';
-import {socialBias} from './memory.js';
+import {consent, coolTension} from './relationships.js';
+import {canPauseForPlan, completePlan, hasUpcomingPlan, pausePlans, progressPlans} from './plans.js';
 import { residents } from './profiles.js';
 import {createResident} from './resident-state.js';
 import { advanceNeeds, urgency } from './needs.js';
 import { openConversation, finishConversation } from './social.js';
-import { recordKitchenWait, attemptKitchenRepair, releaseKitchen, coolConflicts } from './conflicts.js';
-import { recordExperience, preferenceBonus } from './learning.js';
-import { findRoute } from './navigation.js';
-import { proposeRelationship, respondToProposal, endRelationship } from './romance.js';
+import { recordKitchenWait, attemptKitchenRepair, releaseKitchen, coolConflicts, checkNoise, hasAgreement, honorAgreement, recordIncident } from './conflicts.js';
+import { recordExperience, preferenceBonus, cookMinutes, learnedQuiet } from './learning.js';
+import { findRoute, canTalkAt } from './navigation.js';
+import { updateRomance } from './romance.js';
 import { moodFrom } from './mood.js';
 import { validateWorldEnvelope } from './world-schema.js';
 import { mealPosition } from './meal-stage.js';
@@ -47,6 +49,8 @@ export function createWorld({worldId='casa',seed=123456,now=Date.now(),timezone=
 }
 function choose(world,p,at){
  const hour=localHour(at,'UTC'),sleepTime=inSleepWindow(hour,p.profile),n=p.needs,options=[];
+ const safeForGoals=!sleepTime&&n.energia>=24&&n.saciedad>=28&&n.bano>=24;
+ const protectsPlan=n.energia>=24&&n.saciedad>=28&&n.bano>=24&&hasUpcomingPlan(world,p,at);
  for(const [id,a] of Object.entries(definitions)){
   if(id==='charlar'||id==='esperar')continue; // Conversación compartida se incorpora con consentimiento en una fase posterior.
   if(id==='fumar'&&(!['Catalán','Linkal','May','Mei'].includes(p.name)||at-(p.lastSmokedAt??-Infinity)<3*HOUR||sleepTime||n.energia<25))continue;
@@ -57,6 +61,7 @@ function choose(world,p,at){
    if(!hobby)continue;
    gym=false;
   }
+  if(protectsPlan&&!canPauseForPlan({id,activity:gym?'gimnasio':null}))continue;
   const base=gym?'comunidad:gimnasio':a.resource?(p.homeId+':'+a.resource+(['bed','computer'].includes(a.resource)?':'+p.id:'')):null;
   const key=base?freeResource(world,base,at,a.resource==='sofa'?3:1):null;
   if(base&&!key)continue;
@@ -65,6 +70,7 @@ function choose(world,p,at){
   // Evitar volver a acostarse nada más despertarse con energía suficiente.
   if(id==='dormir'&&n.energia>=(sleepTime?85:35))continue;
   let score=id==='limpiar'?(.08+mess/100*(.55+.25*(p.profile.traits.orden??.5))):urgency(n[a.need])*.65;
+  if(id==='limpiar'&&hasAgreement(world,p,'clean_dishes'))score+=.35;
   if(id==='dormir')score+=sleepTime?.55:-.15;
   if(id==='comer'&&[8,9,13,14,20,21].includes(hour))score+=.18;
   if(id==='jugar'&&p.profile.interests.includes('ordenador'))score+=.16;
@@ -78,6 +84,11 @@ function choose(world,p,at){
   if(id==='leer'&&others>=2)continue;
   if(!['dormir','comer','charlar'].includes(id))score-=Math.max(0,others-1)*.10;
   score+=preferenceBonus(p,id);
+  if(safeForGoals){
+   score+=goalBonus(p,id,at);
+   if(['leer','estudiar','practicar','pasear','jugar'].includes(id)&&id!==p.lastAction)
+    score+=p.profile.traits.curiosidad*.025;
+  }
   if(p.lastAction===id)score-=.16;
   if(n.energia<20&&id!=='dormir')score-=.4;
   options.push({id,key,hobby,score:score+random(world)*.04});
@@ -90,19 +101,20 @@ function roomPosition(p){const [cx,cz]=homes[p.homeId];const slot=residents.filt
 function destination(p,id){const [cx,cz]=homes[p.homeId];if(id==='pasear')return {x:0,z:16};if(id==='fumar'){const index=['Catalán','Linkal','May','Mei'].indexOf(p.name);return {x:-3+index*2,z:17}}if(['dormir','jugar','estudiar'].includes(id))return roomPosition(p);if(id==='asearse')return {x:cx-4.9,z:cz+4.65};if(id==='usar_bano')return {x:cx-5.5,z:cz+4.25};if(id==='limpiar')return {x:cx-1.5,z:cz+4.35};if(id==='comer')return {x:cx-1,z:cz+1};return {x:cx+1,z:cz+1}}
 function routeFor(p,to){return findRoute(p.position??roomPosition(p),to)}
 function planMeal(p,at,eventSequence){
- const recipe=recipeFor(p,eventSequence);
+ const goal=activeGoal(p,at);
+ const recipe=recipeFor(p,eventSequence,goal?.kind==='recipe'?goal.recipe:undefined);
  const [cx,cz]=homes[p.homeId],stages=[];let cursor=at,position=p.position??roomPosition(p);
  const walk=(kind,target)=>{const route=findRoute(position,target);if(!route.length)return false;let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const duration=Math.round(length*1500*DAY_RATE);stages.push({kind,start:cursor,end:cursor+duration,route});cursor+=duration;position=route.at(-1);return true};
  const pause=(kind,duration)=>{stages.push({kind,start:cursor,end:cursor+duration,route:[position]});cursor+=duration};
  if(!walk('to_fridge',{x:cx+1.3,z:cz+4.35}))return null;
  pause('fridge',MINUTE);
  if(!walk('to_stove',{x:cx-2.8,z:cz+4.35}))return null;
- pause('cooking',recipe.prepareMinutes*MINUTE);
+ pause('cooking',Math.round(cookMinutes(p,recipe)*MINUTE));
  if(!walk('to_table',{x:cx+1.9,z:cz+1.2}))return null;
  const eatingStart=cursor;pause('eating',25*MINUTE);
  return {recipe:recipe.id,recipeName:recipe.name,nutrition:recipe.nutrition,stages,eatingStart,eatMs:25*MINUTE,seat:{x:cx+1.9,z:cz+1.2},until:cursor};
 }
-function acceptsInvitation(world,p,other){const tension=p.relationships?.[other.id]?.tension??0;const socialNeed=(100-p.needs.compania)/100;const chance=Math.max(.1,Math.min(.9,.25+.35*p.profile.traits.sociabilidad+.3*socialNeed-tension/200+socialBias(p,other.id,world.lastSimulatedAt)*.04));return random(world)<chance}
+function acceptsInvitation(world,p,other){return random(world)<consent(p,other,world.lastSimulatedAt)}
 function start(world,p,at,forced=null){
  const kitchen=world.reservations[p.homeId+':kitchen'];
  if(p.needs.saciedad<50&&kitchen&&kitchen.until>at&&kitchen.personId!==p.id){const occupant=world.people.find(q=>q.id===kitchen.personId);if(occupant)recordKitchenWait(world,p,occupant,at)}
@@ -118,6 +130,10 @@ function start(world,p,at,forced=null){
  const hobby=selected.hobby||p.profile.interests[0];const label=gym?'levantando pesas en el gimnasio comunitario':selected.id==='practicar'&&hobby?'disfrutando de '+hobby:def.label;
  p.action={id:selected.id,label,start:at,until,resource:selected.key,route,travelMs};
  if(gym)p.action.activity='gimnasio';
+ if(selected.id==='ver_tv'&&(hasAgreement(world,p,'quiet_tv')||learnedQuiet(p,world,at+travelMs))){
+  p.action.quiet=true;
+  p.action.label='viendo la tele a volumen bajo';
+ }
  if(sofaSeat)p.action.seat=sofaSeat;
  if(selected.id==='usar_bano')p.action.seat={x:homeX-6.35,z:homeZ+5.33};
  if(meal)p.action.meal=meal;
@@ -129,30 +145,38 @@ function finish(world,p,at){
  const action=p.action,def=definitions[action.id];
  if(action.conversationId&&finishConversation(world,action.conversationId,at)){
   const conversation=world.conversations[action.conversationId];
-  attemptKitchenRepair(world,conversation,at,random(world));
-  const [a,b]=conversation.participants.map(id=>world.people.find(q=>q.id===id));
-  if(a&&b&&a.profile.romanceEnabled&&b.profile.romanceEnabled){
-   const key=[a.id,b.id].sort().join(':'),pair=world.romance?.couples?.[key],tension=Math.max(a.relationships?.[b.id]?.tension??0,b.relationships?.[a.id]?.tension??0);
-   const repeated=Object.values(world.conflicts??{}).some(c=>c.participants.includes(a.id)&&c.participants.includes(b.id)&&c.severity>=3);
-   if(pair?.status==='together'&&tension>=75&&repeated&&random(world)<.15)endRelationship(world,a,b,at,'conflictos de convivencia acumulados');
-   else if(!pair||pair.status!=='together'){
-    if(random(world)<.15){const offer=proposeRelationship(world,a,b,at);if(offer){const r=b.relationships?.[a.id];const chance=Math.max(.05,Math.min(.9,((r?.romanticInterest??0)+(r?.trust??0))/200));respondToProposal(world,offer.id,b.id,random(world)<chance,at)}}
-   }
-  }
+  if(conversation.planId)completePlan(world,conversation,at);
+  else attemptKitchenRepair(world,conversation,at,random(world));
+  updateRomance(world,conversation,at,()=>random(world));
  }
  if(action.id==='fumar')p.lastSmokedAt=at;
- if(action.id==='comer')world.households[p.homeId].mess=limit(world.households[p.homeId].mess+12);
+ if(action.id==='comer'){
+  const home=world.households[p.homeId];
+  home.mess=limit(home.mess+12);
+  const affected=world.people.find(q=>q!==p&&q.homeId===p.homeId&&q.profile.traits.orden>=.55&&q.action?.id!=='dormir'
+   &&Math.hypot((q.position?.x??0)-homes[p.homeId][0],(q.position?.z??0)-homes[p.homeId][1])<7);
+  if(home.mess>=48&&affected)recordIncident(world,affected,p,'dishes',at);
+ }
+ if(action.id==='ver_tv'&&action.quiet)honorAgreement(world,p,'quiet_tv',at);
  if(action.id==='limpiar'){
   const home=world.households[p.homeId];home.mess=limit(home.mess-45);
   event(world,'cleaning_finished',p,at,{homeId:p.homeId,mess:home.mess});
+  honorAgreement(world,p,'clean_dishes',at);
  }
  if(def.gain&&!(action.id==='comer'&&action.meal)&&!(['asearse','usar_bano'].includes(action.id)&&action.care))p.needs[def.need]=limit(p.needs[def.need]+def.gain);
  if(action.resource&&world.reservations[action.resource]?.personId===p.id){delete world.reservations[action.resource];if(action.resource.endsWith(':kitchen'))releaseKitchen(world,p,at)}
  const skillByAction={jugar:'juegos',estudiar:'estudio',comer:'cocina',practicar:'aficiones'};
  if(skillByAction[action.id]){
   const likes=(action.id==='jugar'&&p.profile.interests.includes('ordenador'))||(action.id==='estudiar'&&p.profile.interests.includes('estudio'))||action.id==='practicar';
-  recordExperience(p,{activity:action.id,skill:skillByAction[action.id],minutes:Math.max(0,(at-action.start-(action.travelMs||0))/MINUTE),reward:likes?.5:0});
+  const cooking=action.meal?.stages?.find(stage=>stage.kind==='cooking');
+  const effectiveMs=action.id==='comer'
+   ?(cooking?cooking.end-cooking.start:action.meal?.prepareMs??0)
+   :action.until-action.start-(action.travelMs??0);
+  recordExperience(p,{activity:action.id,skill:skillByAction[action.id],
+   minutes:Math.max(0,effectiveMs/MINUTE),reward:likes?.5:0,recipe:action.meal?.recipe});
  }
+ advanceGoal(p,'practice',{activity:action.id},at);
+ if(action.meal?.recipe)advanceGoal(p,'recipe',{recipe:action.meal.recipe},at);
  if(action.meal?.stages)p.position=action.meal.stages.at(-1).route.at(-1);else if(action.route?.length)p.position=action.route[action.route.length-1];p.lastAction=action.id;p.action=null;event(world,'action_finished',p,at,{action:action.id});
 }
 // Una interrupción conserva el punto alcanzado, sin completar ni premiar la acción.
@@ -169,7 +193,7 @@ function positionDuring(action,fallback,at){
 }
 function addressUrgentNeed(world,p,at){
  const old=p.action;
- if(!old||!['practicar','ver_tv','pasear','jugar','estudiar','descansar','leer','esperar','limpiar','fumar'].includes(old.id))return false;
+ if(!old||(!old.planId&&!['practicar','ver_tv','pasear','jugar','estudiar','descansar','leer','esperar','limpiar','fumar'].includes(old.id)))return false;
  const critical=p.needs.bano<12?'usar_bano':p.needs.saciedad<10?'comer':p.needs.energia<8?'dormir':null;
  if(!critical)return false;
  const resource=definitions[critical].resource;
@@ -187,6 +211,7 @@ export function resumeAfterAbsence(world,now,{idleThresholdMs=90000,wallNow=now,
  const last=world.lastObservedAt ?? wallNow;
  if(!force && wallNow-last<=idleThresholdMs)return false;
  world.reservations={};
+ pausePlans(world,now);
  for(const c of Object.values(world.conversations??{}))if(!c.finished){c.finished=true;c.cancelled=true}
  for(const meeting of Object.values(world.meetings??{}))if(!meeting.finished){meeting.finished=true;meeting.cancelled=true}
  for(const p of world.people){
@@ -195,6 +220,7 @@ export function resumeAfterAbsence(world,now,{idleThresholdMs=90000,wallNow=now,
   // Descanso y comidas se presuponen, sin generar recuerdos ni relaciones.
   p.needs={...p.needs,saciedad:75,energia:(localHour(now,'UTC')>=7&&localHour(now,'UTC')<23)?90:35,higiene:75,bano:75,compania:Math.max(35,p.needs.compania),diversion:Math.max(40,p.needs.diversion)};
  }
+ world.lastReflectionDay=Math.floor((now-23*HOUR)/(24*HOUR));
  world.lastSimulatedAt=now-1;
  return true;
 }
@@ -215,19 +241,25 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
  while(world.lastSimulatedAt<end){
   const at=world.lastSimulatedAt,step=Math.min(MINUTE,end-at),next=at+step;
   coolConflicts(world,at);
+  expireGoals(world,at);
+  coolTension(world,step/HOUR);
   for(const p of world.people)if(p.action&&(p.action.until<=at||(p.action.id==='dormir'&&at>=p.action.start+(p.action.travelMs||0)&&at>=p.action.start+(p.action.travelMs||0)+4*HOUR&&p.needs.energia>=80&&!inSleepWindow(localHour(at,'UTC'),p.profile))))finish(world,p,at);
   // Una reserva solo es válida mientras su dueño siga usando ese recurso.
   // Si la acción continúa, reparar su vencimiento evita reservas simultáneas.
   for(const [key,reservation] of Object.entries(world.reservations)){
+   if(reservation.planId&&world.plans?.[reservation.planId]?.keys?.includes(key)
+    &&['travelling','active'].includes(world.plans[reservation.planId].status)&&reservation.until>at)continue;
    const owner=world.people.find(p=>p.id===reservation?.personId),action=owner?.action;
    if(!action||action.resource!==key||!Number.isFinite(action.until)||action.until<=at)delete world.reservations[key];
    else reservation.until=action.until;
   }
   for(const p of world.people)addressUrgentNeed(world,p,at);
+  progressPlans(world,at,positionDuring,()=>random(world));
+  checkNoise(world,at);
   socialPulse(world,at,()=>random(world));
   // Una invitación puede interrumpir ocio tranquilo si ambos están disponibles,
   // cerca y han pasado al menos tres horas de juego desde su último encuentro.
-  const canInvite=p=>p.action&&!p.action.meetingId&&(['leer','pasear','ver_tv','descansar'].includes(p.action.id)||(p.action.id==='practicar'&&p.action.activity!=='gimnasio'))
+  const canInvite=p=>p.action&&!hasUpcomingPlan(world,p,at)&&!p.action.planId&&!p.action.meetingId&&(['leer','pasear','ver_tv','descansar'].includes(p.action.id)||(p.action.id==='practicar'&&p.action.activity!=='gimnasio'))
     &&at-p.action.start>=10*MINUTE&&at>=p.action.start+(p.action.travelMs||0)
     &&p.action.until-at>=5*MINUTE&&at-(p.lastSocialAt??-Infinity)>=3*HOUR;
   for(const a of world.people){
@@ -235,17 +267,17 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
    const aPos=a.action.route?.at(-1)??a.position;
    const b=world.people.find(q=>q.id!==a.id&&q.homeId===a.homeId&&canInvite(q)
     &&q.action.route?.length&&aPos
-    &&Math.hypot(q.action.route.at(-1).x-aPos.x,q.action.route.at(-1).z-aPos.z)<3);
+    &&canTalkAt(q.action.route.at(-1),aPos));
    if(!b)continue;
    if(!acceptsInvitation(world,a,b)||!acceptsInvitation(world,b,a)){a.lastSocialAt=at;continue}
    for(const p of [a,b]){const old=p.action;if(old.resource&&world.reservations[old.resource]?.personId===p.id)delete world.reservations[old.resource];p.position=old.route?.at(-1)??p.position;p.action=null;event(world,'activity_interrupted',p,at,{action:old.id,reason:'invitación aceptada'})}
    if(openConversation(world,a,b,at)){a.lastSocialAt=at;b.lastSocialAt=at}
   }
   // Dos personas libres y próximas pueden aceptar una charla; una sola acción compartida.
-  const available=world.people.filter(p=>!p.action);
+  const available=world.people.filter(p=>!p.action&&!hasUpcomingPlan(world,p,at));
   for(let i=0;i<available.length;i++){
    const a=available[i];if(a.action||random(world)>.35)continue;
-   const b=available.slice(i+1).find(q=>!q.action&&q.homeId===a.homeId&&q.position&&a.position&&Math.hypot(q.position.x-a.position.x,q.position.z-a.position.z)<3);
+   const b=available.slice(i+1).find(q=>!q.action&&q.homeId===a.homeId&&q.position&&a.position&&canTalkAt(q.position,a.position));
    if(b&&acceptsInvitation(world,a,b)&&acceptsInvitation(world,b,a))openConversation(world,a,b,at);
   }
   for(const p of world.people){
@@ -273,6 +305,7 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
    }
    p.mood=moodFrom(p);
   }
+  reflectAtNight(world,at,next);
   world.lastSimulatedAt=next;
  }
  world.worldVersion++;

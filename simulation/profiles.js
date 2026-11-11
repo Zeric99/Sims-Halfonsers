@@ -1,5 +1,6 @@
 // Datos lúdicos provisionales. No representan rasgos reales de los amigos.
 export const PROFILE_VERSION = 1;
+export const QUESTIONNAIRE_VERSION = 1;
 export const TRAITS = ['sociabilidad','amabilidad','paciencia','orden','curiosidad','constancia','privacidad','sensibilidadRuido','iniciativaSocial'];
 const clamp = n => Math.min(1, Math.max(0, n));
 export const QUESTION_SCHEMA = Object.freeze({
@@ -21,12 +22,33 @@ export const QUESTION_SCHEMA = Object.freeze({
  ruidoConcentracion:[{trait:'sensibilidadRuido',weight:1}],
  ruidoNoMolesta:[{trait:'sensibilidadRuido',weight:1,inverted:true}]
 });
+function isRecord(value){
+ return value!=null&&(Object.getPrototypeOf(value)===Object.prototype||Object.getPrototypeOf(value)===null);
+}
+export function validateProfile(profile){
+ if(!isRecord(profile)||profile.version!==PROFILE_VERSION||!isRecord(profile.traits))
+  throw new TypeError('Versión o perfil de personalidad inválido');
+ if(TRAITS.some(key=>!Number.isFinite(profile.traits[key])||profile.traits[key]<0||profile.traits[key]>1))
+  throw new RangeError('Rasgos de personalidad inválidos');
+ if(![profile.wakeHour,profile.sleepHour].every(hour=>Number.isInteger(hour)&&hour>=0&&hour<24)
+  ||profile.wakeHour===profile.sleepHour)throw new RangeError('Horario inválido');
+ if(!Array.isArray(profile.interests)||profile.interests.some(interest=>typeof interest!=='string'||!interest.trim())
+  ||typeof profile.romanceEnabled!=='boolean'||!Array.isArray(profile.romancePartners)
+  ||profile.romancePartners.some(id=>typeof id!=='string'||!id))
+  throw new TypeError('Preferencias de perfil inválidas');
+ return profile;
+}
+
 export function profileFromAnswers(answers = {}, previous = {}) {
+  if(!isRecord(answers)||Object.keys(answers).some(id=>!Object.hasOwn(QUESTION_SCHEMA,id)))
+   throw new TypeError('Respuestas de personalidad inválidas');
+  let answered=false;
   const totals = Object.fromEntries(TRAITS.map(t => [t, {sum:0, weight:0}]));
   for (const [id, mappings] of Object.entries(QUESTION_SCHEMA)) {
     const value = answers[id];
     if (value == null) continue;
     if (!Number.isInteger(value) || value < 1 || value > 5) throw new RangeError('Respuesta fuera de escala: ' + id);
+    answered=true;
     for (const m of mappings) {
       const normalized = (value - 1) / 4;
       totals[m.trait].sum += (m.inverted ? 1-normalized : normalized) * m.weight;
@@ -39,11 +61,20 @@ export function profileFromAnswers(answers = {}, previous = {}) {
     if (prior != null && (!Number.isFinite(prior) || prior < 0 || prior > 1)) throw new RangeError('Rasgo inválido: ' + t);
     traits[t] = clamp(totals[t].weight ? totals[t].sum/totals[t].weight : (prior ?? .5));
   }
-  return {version:PROFILE_VERSION, provenance:Object.keys(answers).length ? 'cuestionario' : (previous.provenance ?? 'provisional'), traits,
+  return validateProfile({version:PROFILE_VERSION, provenance:answered ? 'cuestionario' : (previous.provenance ?? 'provisional'), traits,
     wakeHour: previous.wakeHour ?? 8, sleepHour: previous.sleepHour ?? 23,
     interests: [...(previous.interests ?? [])], romanceEnabled: previous.romanceEnabled ?? false,
-    romancePartners: [...(previous.romancePartners ?? [])]};
+    romancePartners: [...(previous.romancePartners ?? [])]});
 }
+// Contrato de datos para el cuestionario futuro.
+export function profileFromQuestionnaire(submission,previous){
+ if(!isRecord(submission)||submission.version!==QUESTIONNAIRE_VERSION)
+  throw new RangeError('Versión de cuestionario no compatible');
+ const answers=submission.answers===undefined?{}:submission.answers;
+ const profile=profileFromAnswers(answers,previous);
+ return {...profile,questionnaireVersion:QUESTIONNAIRE_VERSION};
+}
+
 export const residents = [
  ['Eric',['fotografía','ordenador']],['Linkal',['gimnasio','política']],['Mei',['dibujar','ordenador']],
  ['Yaiza',['gimnasio','estudio']],['Snow',['anime','fotografía']],['Adrián',['ordenador','gimnasio']],

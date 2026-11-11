@@ -5,6 +5,7 @@ export function executionState(action,at){
  if(!action)return 'IDLE';
  const stage=mealStage(action,at);if(stage)return stage.kind.startsWith('to_')?'MOVING':'ACTING';
  if(at<action.start+(action.travelMs||0))return 'MOVING';
+ if(action.planId&&action.id==='pasear')return 'WAITING';
  if(action.id==='esperar')return 'WAITING';
  if(action.id==='dormir')return 'SLEEPING';
  return 'ACTING';

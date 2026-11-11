@@ -18,3 +18,7 @@ export function simulationTime(clock,wallNow){
 }
 export function isDay(gameTime){const hour=new Date(gameTime).getUTCHours();if(!Number.isFinite(hour))throw new RangeError('Hora inválida');return hour>=7&&hour<23}
 export function clockRateAt(clock,gameTime){return clock.mode==='cycle29'?(isDay(gameTime)?DAY_RATE:NIGHT_RATE):clock.rate}
+
+export function realElapsed(clock,from,to){
+ return clock.mode==='cycle29'?coordinate(to)-coordinate(from):(to-from)/clock.rate;
+}

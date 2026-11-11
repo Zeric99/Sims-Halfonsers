@@ -6,3 +6,14 @@
 .gossip-box{background:linear-gradient(135deg,#272538,#172332);border-color:#50465b}.gossip-icon{background:#45344a;color:#ffb4cb}.gossip-row{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid #ffffff18}.gossip-badge{display:grid;place-items:center;flex:0 0 30px;height:30px;border-radius:9px;background:#ffffff0c;color:#f4a3b7}.gossip-row div{min-width:0;display:grid;gap:3px}.gossip-row small{font-size:8px;font-weight:700;letter-spacing:.14em;color:#a89bac}.gossip-row strong{font-size:11px;color:#f4f4f6;overflow-wrap:anywhere}.gossip-row div>span{font-size:10px;color:#c3b5be}
 .gossip-chatter{border-top:1px solid #ffffff18;display:grid;gap:3px;padding:10px 0}.gossip-chatter small,.gossip-rankings>strong{font-size:8px;font-weight:700;letter-spacing:.12em;color:#b9a7b7}.gossip-chatter strong{font-size:11px}.gossip-chatter span,.gossip-rankings p,.gossip-rankings li{font-size:10px;color:#c3b5be;line-height:1.5}.gossip-rankings{border-top:1px solid #ffffff18;padding-top:10px}.gossip-rankings summary{cursor:pointer;color:#f2bcc9;font-size:11px;font-weight:700}.gossip-rankings p{margin:8px 0}.gossip-rankings ol{padding-left:20px;margin:6px 0 10px}
 .follow-button{border:1px solid #547057;border-radius:7px;background:#233b32;color:#c7f19e;font:700 11px system-ui;padding:9px 12px;cursor:pointer;margin:4px 0 10px}.follow-button:disabled{opacity:.45;cursor:default}#visit-recap p{font-size:11px;color:#bdcbd6;line-height:1.5;margin:8px 0}
+
+#neighbourhood-agenda{border-top:1px solid var(--line, #2a394d);margin-top:14px;padding-top:12px}
+#neighbourhood-agenda h3{font-size:1rem;margin:0 0 6px}
+#neighbourhood-agenda ul{list-style:none;padding:0;margin:0}
+#neighbourhood-agenda li{padding:5px 0;font-size:.83rem}
+
+.speech-overlay{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden}
+.speech-stack{position:absolute;top:0;left:0;display:grid;gap:5px;width:max-content;max-width:min(215px,68%);padding-bottom:6px}
+.speech-message{position:relative;padding:6px 9px;border:1px solid #253242;border-left:3px solid var(--speaker-color);border-radius:10px;background:#fffefa;color:#17212d;box-shadow:0 2px 6px #10182030;font-size:clamp(11px,1vw,13px);font-weight:600;line-height:1.25;overflow-wrap:anywhere}
+.speech-message strong{color:var(--speaker-color);font-weight:800}
+.speech-message:last-child::after{content:'';position:absolute;bottom:-4px;left:calc(50% - 4px);width:7px;height:7px;transform:rotate(45deg);background:#fffefa;border-right:1px solid #253242;border-bottom:1px solid #253242}
