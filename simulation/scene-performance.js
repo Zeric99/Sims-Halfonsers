@@ -1,9 +1,11 @@
+import {DAY_RATE} from './clock.js';
 import {speakingTurn} from './speech.js';
 
 export function conversationGesture(conversation,id,now){
  const active=speakingTurn(conversation,now);
  if(!active||!conversation.participants.includes(id))return null;
  const speaking=active.speaker===id;
+ if(!conversation.planId&&!['repair','prank'].includes(conversation.story)&&now-conversation.start<2.4*1000*DAY_RATE)return 'greet';
  if(conversation.story==='repair')return speaking?'explain':'listenCareful';
  if(conversation.story==='prank'){
   if(active.turn===0)return speaking?'joke':'listen';

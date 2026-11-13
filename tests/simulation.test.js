@@ -304,7 +304,7 @@ test('solo los cuatro fumadores hacen pausas en el jardín',()=>{
 });
 
 test('aseo y baño recuperan necesidades al llegar y sin recompensa duplicada',()=>{
- for(const [id,need,gain,duration,decay] of [['asearse','higiene',70,10,2],['usar_bano','bano',80,5,5]]){
+ for(const [id,need,gain,duration,decay] of [['asearse','higiene',70,10,2],['usar_bano','bano',80,8,11]]){
   const start=Date.UTC(2026,0,1,12),world=createWorld({now:start}),p=world.people[0],minute=60000;
   p.needs[need]=10;
   p.action={id,label:id,start,until:start+(2+duration)*minute,resource:null,route:[],travelMs:2*minute,care:{durationMs:duration*minute}};

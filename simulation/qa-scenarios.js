@@ -6,6 +6,12 @@ import {createWorld,advanceWorld} from './world.js';
 import {collectChronicle} from './chronicles.js';
 // Solo lo sirve dev-server; nunca escribe en el mundo del usuario.
 export function qaScenario(kind='meal',phase='eating',personIndex=0){
+ if(kind==='greeting'){
+  const at=Date.UTC(2026,0,1,15),world=createWorld({seed:42,now:at});
+  const [a,b]=world.people;a.position={x:0,z:15};b.position={x:1,z:15};
+  const c=openConversation(world,a,b,at);c.story='catch_up';
+  return {world,serverTime:at+1000,clockRate:1,mode:'escenario_local'};
+ }
  if(kind==='bathroom'){
   const at=Date.UTC(2026,0,1,15);
   const world=createWorld({seed:42,now:at});
@@ -102,6 +108,8 @@ export function qaScenario(kind='meal',phase='eating',personIndex=0){
  if(kind==='evolution'){
   const {world}=qaScenario('social','result');
   const at=Date.UTC(2026,0,2,7,1);
+  // Isolate the remembered plan from unrelated random group events.
+  world.nextGroupCheck=at+86400000;
   advanceWorld(world,at,{maxMinutes:1440});
   return {world,serverTime:at,clockRate:1,mode:'escenario_local'};
  }

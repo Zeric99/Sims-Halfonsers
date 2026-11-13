@@ -1,7 +1,7 @@
 import {DAY_RATE} from './clock.js';
 
 const loudResidents=new Set(['Eric','Lolo','David']);
-export const bathroomRush=person=>person.needs.bano<12;
+export const bathroomRush=person=>person.needs.bano<24;
 
 export function bathroomCall(person,wasTalking){
  if(loudResidents.has(person.name))return '¡Me cago!';

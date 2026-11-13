@@ -34,7 +34,7 @@ const definitions={
  pasear:{label:'dando un paseo',minutes:15,need:'diversion',gain:12,resource:null},
  dormir:{label:'durmiendo',minutes:480,need:'energia',gain:0,resource:'bed'},
  comer:{label:'comiendo',minutes:25,need:'saciedad',gain:60,resource:'kitchen'},
- usar_bano:{label:'usando el baño',minutes:5,need:'bano',gain:80,resource:'bathroom'},
+ usar_bano:{label:'usando el baño',minutes:8,need:'bano',gain:80,resource:'bathroom'},
  asearse:{label:'aseándose',minutes:10,need:'higiene',gain:70,resource:'bathroom'},
  jugar:{label:'jugando al ordenador',minutes:45,need:'diversion',gain:30,resource:'computer'},
  estudiar:{label:'estudiando',minutes:40,need:'diversion',gain:4,resource:'computer'},

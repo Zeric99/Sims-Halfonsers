@@ -9,7 +9,7 @@ import {affinity,consent} from './relationships.js';
 const MIN=60000;
 function onRoute(action,at){const route=action.route,distances=route.slice(1).map((p,i)=>Math.hypot(p.x-route[i].x,p.z-route[i].z));let left=distances.reduce((a,b)=>a+b,0)*Math.max(0,Math.min(1,(at-action.start)/(action.travelMs||1)));for(let i=0;i<distances.length;i++){if(distances[i]>0&&left<=distances[i]){const q=left/distances[i];return {x:route[i].x+(route[i+1].x-route[i].x)*q,z:route[i].z+(route[i+1].z-route[i].z)*q}}left-=distances[i]}return route.at(-1)}
 function log(world,type,at,extra){const event={id:world.worldId+':'+(++world.eventSequence),type,at,...extra};world.events.push(event);if(world.events.length>500)world.events.shift();return event}
-const ready=(world,p,at)=>!hasGroupCommitment(world,p.id,at)&&!hasUpcomingPlan(world,p,at)&&p.action&&['leer','ver_tv','descansar','pasear','practicar'].includes(p.action.id)&&p.action.activity!=='gimnasio'&&!p.action.meetingId&&!p.action.planId&&!p.action.groupId&&at>=p.action.start+(p.action.travelMs||0)+5*MIN&&p.needs.energia>25&&p.needs.saciedad>25&&p.needs.bano>25&&at-(p.lastSocialAt??-Infinity)>3*3600000;
+const ready=(world,p,at)=>!hasGroupCommitment(world,p.id,at)&&!hasUpcomingPlan(world,p,at)&&p.action&&['leer','ver_tv','descansar','pasear','practicar','jugar'].includes(p.action.id)&&p.action.activity!=='gimnasio'&&!p.action.meetingId&&!p.action.planId&&!p.action.groupId&&at>=p.action.start+(p.action.travelMs||0)+2*MIN&&p.needs.energia>25&&p.needs.saciedad>25&&p.needs.bano>25&&at-(p.lastSocialAt??-Infinity)>20*MIN;
 export function socialPulse(world,at,random){
  world.meetings??={};
  for(const meeting of Object.values(world.meetings)){
@@ -22,15 +22,26 @@ export function socialPulse(world,at,random){
   }
  }
  const old=Object.values(world.meetings).filter(m=>m.finished);for(const m of old.slice(0,Math.max(0,old.length-30)))delete world.meetings[m.id];
+ // Keep at most three spontaneous pairs; plans and urgent needs still take priority.
+ let socialPairs=Object.values(world.conversations??{}).filter(c=>!c.finished&&!c.cancelled&&c.end>at).length+Object.values(world.meetings).filter(m=>!m.finished).length;
  for(const a of world.people){
+  if(socialPairs>=3)break;
   const goal=activeGoal(a,at);
   const repair=goal?.kind==='repair'&&world.people.some(other=>other.id===goal.with&&ready(world,other,at));
-  if(!ready(world,a,at)||(!repair&&a.needs.compania>70)||random()>(repair?.045:.025))continue;
+  if(!ready(world,a,at)||(!repair&&a.needs.compania>95&&socialPairs>0)||random()>(repair?.16:socialPairs===0?.35:.12))continue;
   const candidates=world.people.filter(b=>b.id!==a.id&&ready(world,b,at)).map(b=>({b,score:affinity(a,b,at)+(a.homeId===b.homeId?.2:0)+(repair&&goal.with===b.id?.5:0)})).sort((x,y)=>y.score-x.score);
-  const b=candidates[0]?.b;if(!b)continue;
-  const posA=a.action.route?.at(-1)??a.position,posB=b.action.route?.at(-1)??b.position;if(!posA||!posB)continue;
-  // Buscar un punto accesible al lado del invitado, nunca teletransportarlo.
-  const route=findRoute(posA,{x:posB.x+1,z:posB.z});if(!route.length||!canTalkAt(route.at(-1),posB))continue;
+  const posA=a.action.route?.at(-1)??a.position;if(!posA)continue;
+  let b,posB,route;
+  // Try the next neighbour if the favourite is behind furniture or a wall.
+  for(const candidate of candidates){
+   const position=candidate.b.action.route?.at(-1)??candidate.b.position;if(!position)continue;
+   for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){
+    const path=findRoute(posA,{x:position.x+dx,z:position.z+dz});
+    if(path.length&&canTalkAt(path.at(-1),position)){b=candidate.b;posB=position;route=path;break}
+   }
+   if(b)break;
+  }
+  if(!b)continue;
   a.lastSocialAt=b.lastSocialAt=at;
   const chance=consent(b,a,at);
   const accepted=random()<chance,event=log(world,accepted?'invitation_accepted':'invitation_declined',at,{participants:[a.id,b.id],reason:'charlar'});
@@ -44,6 +55,7 @@ export function socialPulse(world,at,random){
    const travelMs=Math.round(length*1500*DAY_RATE);maxTravel=Math.max(maxTravel,travelMs);
    p.position=path[0];p.action={id:'pasear',label:p===a?'yendo a hablar con '+b.name:'esperando a '+a.name,start:at,until:at+travelMs+60*MIN,travelMs,route:path,resource:null,meetingId:id};
   }
+  socialPairs++;
   world.meetings[id]={id,participants:[a.id,b.id],expires:at+maxTravel+10*MIN,finished:false};
  }
 }

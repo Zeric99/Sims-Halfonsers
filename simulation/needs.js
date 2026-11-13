@@ -1,5 +1,5 @@
 // Tasas por hora simulada; las necesidades son satisfacción de 0 a 100.
-export const NEEDS_CONFIG = Object.freeze({saciedad:4, energia:4, higiene:2, compania:3, diversion:3, bano:5});
+export const NEEDS_CONFIG = Object.freeze({saciedad:4, energia:4, higiene:2, compania:3, diversion:3, bano:11});
 const clamp = n => Math.max(0,Math.min(100,n));
 export function advanceNeeds(needs, hours, {sleeping=false,sociability=.5}={}) {
  if (!Number.isFinite(hours) || hours < 0) throw new RangeError('Tiempo inválido');

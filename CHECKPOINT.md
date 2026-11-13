@@ -158,3 +158,10 @@ Cuentas y formulario completo, edición visual avanzada, IA generativa obligator
 - [x] Evitar guiones recientemente oídos por cualquiera de los dos participantes, también con otras parejas; elección determinista compartida.
 - [x] Mei puede priorizar una pausa en el jardín cuando se satura, respetando necesidades y el intervalo de fumar existente.
 - [x] 123 pruebas automáticas superadas. Interfaz comprobada en navegador local en vista estrecha y de escritorio.
+
+## Más dinamismo — 13 noviembre 2026
+- [x] Más invitaciones espontáneas, incluso durante juegos, con prioridad cuando no hay ninguna charla; hasta tres parejas de este sistema.
+- [x] Buscar otros puntos y vecinos si un mueble bloquea el encuentro; preservar consentimiento, necesidades y compromisos.
+- [x] Saludo articulado de mano al empezar una charla normal, con transición a hablar/escuchar.
+- [x] Necesidad de baño más frecuente, urgencia antes y estancia visible de ocho minutos simulados.
+- [x] 125 pruebas superadas; tres ensayos de seis horas diurnas con máximos de silencio de 45–58 segundos reales. Saludo comprobado en navegador local.

@@ -93,6 +93,7 @@ smoke.visible=smoking;if(!smoking){smokeTime=0;return}smokeTime+=dt;root.updateW
  const clip=(name,tracks)=>new THREE.AnimationClip(name,1,tracks.map(([joint,values])=>track(joint,values)));
  const still=[0,0,0,0,0],sitting=Array(5).fill(-Math.PI/2),knees=Array(5).fill(Math.PI/2);
  const socialClips=[
+  clip('greet',[['rightShoulder',[-.3,-1.65,-1.75,-1.65,-.3]],['rightElbow',[-.3,-1.1,-.65,-1.1,-.3]],['head',[0,.08,0,.08,0]]]),
   clip('listen',[['head',[0,.07,.02,.15,0]],['rightElbow',[-.14,-.22,-.17,-.22,-.14]]]),
   clip('listenCareful',[['head',[.12,.17,.12,.25,.12]],['torso',[.045,.055,.055,.065,.045]],['leftElbow',[-.22,-.23,-.22,-.27,-.22]]]),
   clip('explain',[['rightShoulder',[-.18,-.44,-.53,-.23,-.18]],['rightElbow',[-.32,-.95,-.78,-.42,-.32]],['head',[.08,.15,.03,.07,.08]]]),
@@ -102,6 +103,7 @@ smoke.visible=smoking;if(!smoking){smokeTime=0;return}smokeTime+=dt;root.updateW
  ];
  socialClips.find(c=>c.name==='offended').tracks.push(new THREE.NumberKeyframeTrack('head.rotation[y]',times,[.16,.35,.48,.29,.16]));
  socialClips.find(c=>c.name==='explain').tracks.push(new THREE.NumberKeyframeTrack('rightShoulder.rotation[z]',times,[.1,.24,.4,.16,.1]));
+ socialClips.find(c=>c.name==='greet').tracks.push(new THREE.NumberKeyframeTrack('rightWrist.rotation[z]',times,[0,.5,-.5,.5,0]));
  const seatedSocial=socialClips.map(c=>{const seatedClip=c.clone();seatedClip.name+='Seated';seatedClip.tracks.push(...clip('seat',[['leftHip',sitting],['rightHip',sitting],['leftKnee',knees],['rightKnee',knees]]).tracks);return seatedClip});
  const clips=[
   ...socialClips,...seatedSocial,
