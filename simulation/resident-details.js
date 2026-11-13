@@ -5,6 +5,7 @@ import {describeStory} from './stories.js';
 import {relationshipLabel} from './relationships.js';
 import { executionState } from './execution.js';
 import { mealStage } from './meal-stage.js';
+import {groupKinds} from './group-events.js';
 // Información derivada únicamente del último estado compartido.
 export function describeResident(world,name,now){
  const p=world.people.find(x=>x.name===name);if(!p)return null;
@@ -28,6 +29,8 @@ export function describeResident(world,name,now){
   next=commitments[0].label+' con '+commitments[0].other+'.';
   if(commitments[0].status==='active')next='Terminar el plan con '+commitments[0].other+'.';
  }
+ const group=Object.values(world.groupEvents??{}).find(g=>g.attending.includes(p.id)&&['scheduled','travelling','active'].includes(g.status));
+ if(group&&(a?.groupId===group.id||next.startsWith('Todavía')))next=group.status==='active'?'Seguir en el encuentro del jardín.':'Ir al jardín: '+groupKinds[group.kind].title+'.';
  const relationships=Object.entries(p.relationships??{}).map(([id,r])=>({
   name:names.get(id)||'Otro vecino',status:relationshipLabel(r),friendship:Math.round(r.friendship??0),
   trust:Math.round(r.trust??20),tension:Math.round(r.tension??0)

@@ -34,6 +34,13 @@ export function createMii({color=0x648cc4,faceUrl=null,longHair=false}={}){
  const plate=new THREE.Group();plate.name='plate';
  const dish=new THREE.Mesh(new THREE.CylinderGeometry(.23,.21,.035,24),new THREE.MeshStandardMaterial({color:0xf4f1e3}));plate.add(dish);
  const food=new THREE.Mesh(new THREE.SphereGeometry(.12,12,8),new THREE.MeshStandardMaterial({color:0xc78851}));food.scale.y=.5;food.position.y=.04;plate.add(food);plate.position.set(-.22,.78,.42);root.add(plate);
+ const produce=new THREE.Group();
+ for(const [x,z,color] of [[-.13,.02,0xe96c46],[.08,.06,0x79a65a],[.04,-.08,0xf7bc6b]]){
+  const piece=new THREE.Mesh(new THREE.SphereGeometry(.075,10,8),new THREE.MeshStandardMaterial({color}));
+  piece.position.set(x,.06,z);produce.add(piece);
+ }
+ const tray=new THREE.Mesh(new THREE.BoxGeometry(.42,.07,.29),new THREE.MeshStandardMaterial({color:0xb18453}));
+ produce.add(tray);produce.position.set(0,.97,.46);produce.visible=false;root.add(produce);
  const book=new THREE.Group(),page=new THREE.MeshStandardMaterial({color:0xfff4d7});
  for(const side of [-1,1]){const sheet=new THREE.Mesh(new THREE.BoxGeometry(.23,.035,.31),page);sheet.position.x=side*.12;sheet.rotation.z=side*.12;book.add(sheet)}
  book.position.set(0,.96,.46);root.add(book);
@@ -55,7 +62,7 @@ export function createMii({color=0x648cc4,faceUrl=null,longHair=false}={}){
  const smoke=new THREE.Group();root.add(smoke);smoke.visible=false;
  const smokeGeometry=new THREE.SphereGeometry(1,8,6);
  const puffs=Array.from({length:9},(_,i)=>{const mesh=new THREE.Mesh(smokeGeometry,new THREE.MeshBasicMaterial({color:0xdde1e2,transparent:true,opacity:0,depthWrite:false}));smoke.add(mesh);return mesh});
- let smokeTime=0,smoking=false,walking=false,gaitDistance=0;
+ let smokeTime=0,smoking=false,walking=false,carrying=false,gaitDistance=0;
  const smokeOrigin=new THREE.Vector3();
  function setSleeping(blend){sleepBlend=blend;if(faceSprite){faceSprite.visible=blend<.5;facePlane.visible=blend>=.5;sphere.visible=blend>=.5}}
  function update(dt,distance=null){mixer.update(dt);
@@ -68,12 +75,12 @@ export function createMii({color=0x648cc4,faceUrl=null,longHair=false}={}){
     const lift=stance?0:Math.sin(q*Math.PI)*.14;
     const down=.72-lift,length=Math.min(.759,Math.hypot(z,down));
     const bend=Math.acos(length/.76),hip=root.getObjectByName(side+'Hip'),knee=root.getObjectByName(side+'Knee');
-    root.getObjectByName(side+'Shoulder').rotation.x=Math.sin(phase*Math.PI*2)*.4;root.getObjectByName(side+'Elbow').rotation.x=-.3-Math.max(0,Math.sin(phase*Math.PI*2))*.25;
+    root.getObjectByName(side+'Shoulder').rotation.x=carrying?-.7:Math.sin(phase*Math.PI*2)*.4;root.getObjectByName(side+'Elbow').rotation.x=carrying?-.85:-.3-Math.max(0,Math.sin(phase*Math.PI*2))*.25;
     hip.position.y=.8;hip.rotation.x=-Math.atan2(z,down)-bend;knee.rotation.x=2*bend;
     knee.children.at(-1).rotation.x=-(hip.rotation.x+knee.rotation.x);
    }
    torso.rotation.y=Math.sin(gaitDistance/.84*Math.PI*2)*.06;
-  }else{for(const side of ['left','right']){root.getObjectByName(side+'Knee').children.at(-1).rotation.x=0;if(!['sit','eat','study','computer'].includes(current?.getClip().name))root.getObjectByName(side+'Hip').position.y=.82}}
+  }else{for(const side of ['left','right']){root.getObjectByName(side+'Knee').children.at(-1).rotation.x=0;if(!seatedClips.has(current?.getClip().name))root.getObjectByName(side+'Hip').position.y=.82}}
 smoke.visible=smoking;if(!smoking){smokeTime=0;return}smokeTime+=dt;root.updateWorldMatrix(true,true);tip.getWorldPosition(smokeOrigin);root.worldToLocal(smokeOrigin);
   puffs.forEach((p,i)=>{const age=(smokeTime+i*.28)%2.5,q=age/2.5;p.position.copy(smokeOrigin).add(new THREE.Vector3(Math.sin(age*2+i)*.06+q*.16,age*.35,Math.cos(age+i)*.04));p.scale.setScalar(.025+q*.13);p.material.opacity=Math.sin(Math.PI*q)*.24});
  }
@@ -81,7 +88,19 @@ smoke.visible=smoking;if(!smoking){smokeTime=0;return}smokeTime+=dt;root.updateW
  const track=(name,values)=>new THREE.NumberKeyframeTrack(name+'.rotation[x]',times,values);
  const clip=(name,tracks)=>new THREE.AnimationClip(name,1,tracks.map(([joint,values])=>track(joint,values)));
  const still=[0,0,0,0,0],sitting=Array(5).fill(-Math.PI/2),knees=Array(5).fill(Math.PI/2);
+ const socialClips=[
+  clip('listen',[['head',[0,.07,.02,.15,0]],['rightElbow',[-.14,-.22,-.17,-.22,-.14]]]),
+  clip('listenCareful',[['head',[.12,.17,.12,.25,.12]],['torso',[.045,.055,.055,.065,.045]],['leftElbow',[-.22,-.23,-.22,-.27,-.22]]]),
+  clip('explain',[['rightShoulder',[-.18,-.44,-.53,-.23,-.18]],['rightElbow',[-.32,-.95,-.78,-.42,-.32]],['head',[.08,.15,.03,.07,.08]]]),
+  clip('joke',[['rightShoulder',[-.35,-.7,-1.02,-.38,-.35]],['rightElbow',[-.55,-1.04,-1.2,-.7,-.55]],['torso',[0,.06,-.06,.03,0]],['head',[0,.11,-.11,.06,0]]]),
+  clip('laugh',[['torso',[-.08,.23,.05,.24,-.08]],['head',[-.14,-.29,-.16,-.26,-.14]],['leftShoulder',[-.42,-.62,-.42,-.62,-.42]],['leftElbow',[-.9,-1.24,-.92,-1.23,-.9]],['rightElbow',[-.55,-.72,-.55,-.75,-.55]]]),
+  clip('offended',[['torso',[-.16,-.2,-.16,-.19,-.16]],['head',[.02,.1,-.01,.09,.02]],['rightShoulder',[-.25,-.93,-.56,-.27,-.25]],['rightElbow',[-.45,-1.1,-.84,-.52,-.45]]]),
+ ];
+ socialClips.find(c=>c.name==='offended').tracks.push(new THREE.NumberKeyframeTrack('head.rotation[y]',times,[.16,.35,.48,.29,.16]));
+ socialClips.find(c=>c.name==='explain').tracks.push(new THREE.NumberKeyframeTrack('rightShoulder.rotation[z]',times,[.1,.24,.4,.16,.1]));
+ const seatedSocial=socialClips.map(c=>{const seatedClip=c.clone();seatedClip.name+='Seated';seatedClip.tracks.push(...clip('seat',[['leftHip',sitting],['rightHip',sitting],['leftKnee',knees],['rightKnee',knees]]).tracks);return seatedClip});
  const clips=[
+  ...socialClips,...seatedSocial,
   clip('idle',[['leftElbow',[-.12,-.16,-.12,-.08,-.12]],['rightElbow',[-.08,-.12,-.16,-.12,-.08]]]),
   clip('walk',[
    ['leftHip',[.55,0,-.55,0,.55]],['rightHip',[-.55,0,.55,0,-.55]],
@@ -92,6 +111,8 @@ smoke.visible=smoking;if(!smoking){smokeTime=0;return}smokeTime+=dt;root.updateW
   clip('wash',[['leftShoulder',[-.8,-.9,-.8,-.7,-.8]],['rightShoulder',[-.8,-.7,-.8,-.9,-.8]],['leftElbow',[-.6,-.9,-.6,-.4,-.6]],['rightElbow',[-.9,-.6,-.4,-.6,-.9]],['head',[.1,.12,.1,.08,.1]]]),
   clip('reach',[['rightShoulder',[-.3,-1.25,-1.3,-.6,-.3]],['rightElbow',[-.15,-.35,-.75,-.4,-.15]],['head',[0,.1,.16,.08,0]]]),
   clip('cook',[['leftShoulder',[-.7,-.72,-.7,-.68,-.7]],['leftElbow',[-.6,-.6,-.6,-.6,-.6]],['rightShoulder',[-.8,-.95,-.8,-.65,-.8]],['rightElbow',[-.4,-.7,-.8,-.5,-.4]],['head',[.1,.14,.1,.08,.1]]]),
+  clip('prep',[['rightShoulder',[-.65,-.78,-.66,-.79,-.65]],['rightElbow',[-.61,-.86,-.6,-.84,-.61]],['leftShoulder',[-.58,-.58,-.58,-.58,-.58]],['leftElbow',[-.7,-.7,-.7,-.7,-.7]],['head',[.13,.17,.13,.17,.13]]]),
+  clip('serve',[['rightShoulder',[-.58,-.77,-.95,-.77,-.58]],['leftShoulder',[-.58,-.77,-.95,-.77,-.58]],['leftElbow',[-.75,-.62,-.51,-.62,-.75]],['rightElbow',[-.75,-.62,-.51,-.62,-.75]],['head',[.05,.12,.19,.12,.05]]]),
   clip('talk',[['rightShoulder',[-.2,-.65,-.45,-.15,-.2]],['rightElbow',[-.4,-1,-.7,-.4,-.4]],['leftElbow',[-.3,-.4,-.8,-.5,-.3]],['head',[0,.06,0,-.04,0]]]),
   clip('clean',[['rightShoulder',[-.9,-1.1,-.9,-.65,-.9]],['rightElbow',[-.2,-.4,-.6,-.3,-.2]],['torso',[.08,.12,.08,.04,.08]]]),
   clip('read',[['leftShoulder',[-.7,-.7,-.7,-.7,-.7]],['rightShoulder',[-.7,-.8,-.7,-.6,-.7]],['leftElbow',[-.7,-.7,-.7,-.7,-.7]],['rightElbow',[-.7,-.9,-.7,-.5,-.7]],['head',[.12,.15,.12,.1,.12]]]),
@@ -108,7 +129,8 @@ smoke.visible=smoking;if(!smoking){smokeTime=0;return}smokeTime+=dt;root.updateW
   clip('computer',[['leftHip',sitting],['rightHip',sitting],['leftKnee',knees],['rightKnee',knees],['leftShoulder',[-.75,-.8,-.75,-.7,-.75]],['rightShoulder',[-.75,-.7,-.75,-.8,-.75]],['leftElbow',[-.65,-.55,-.65,-.75,-.65]],['rightElbow',[-.65,-.75,-.65,-.55,-.65]]])
  ];
  // Ajustar cadera y torso al asiento sin acortar las piernas.
- for(const animation of clips.filter(c=>['sit','eat','study','computer'].includes(c.name))){
+ const seatedClips=new Set(['sit','eat','study','computer',...seatedSocial.map(c=>c.name)]);
+ for(const animation of clips.filter(c=>seatedClips.has(c.name))){
   for(const [joint,y] of [['torso',1.03],['leftHip',.66],['rightHip',.66]])animation.tracks.push(new THREE.NumberKeyframeTrack(joint+'.position[y]',[0,1],[y,y]));
  }
  const walk=clips.find(c=>c.name==='walk');
@@ -116,6 +138,6 @@ smoke.visible=smoking;if(!smoking){smokeTime=0;return}smokeTime+=dt;root.updateW
  for(const animation of clips.filter(c=>['eat','study','computer','smoke'].includes(c.name)))animation.tracks.push(new THREE.NumberKeyframeTrack('rightWrist.rotation[z]',times,[0,.15,0,-.12,0]));
  for(const c of clips){for(const t of c.tracks)t.setInterpolation(THREE.InterpolateSmooth);if(c.name!=='walk')c.duration=1.8;for(const t of c.tracks)if(c.name!=='walk')for(let i=0;i<t.times.length;i++)t.times[i]*=1.8}
  const mixer=new THREE.AnimationMixer(root),actions=Object.fromEntries(clips.map(c=>[c.name,mixer.clipAction(c)]));let current=null;
- function play(name){controller.visible=name==='gamepad';walking=name==='walk';smoking=name==='smoke';plate.position.y=name==='eat'?.98:.9;plate.visible=name==='eatStanding'||name==='eat';book.visible=name==='study'||name==='read';cigarette.visible=name==='smoke';for(const weight of weights)weight.visible=name==='gym';const next=actions[name]??actions.idle;if(next===current)return;if(current)current.fadeOut(.2);next.reset().setEffectiveWeight(1).fadeIn(.2).play();current=next}
- play('idle');return {root,mixer,play,update,setSleeping};
+ function play(name,prop=null){carrying=prop==='carryPlate'||prop==='carryIngredients';controller.visible=name==='gamepad';walking=name==='walk';smoking=name==='smoke';plate.position.set(prop==='carryPlate'?0:-.22,name==='eat'?.98:.9,.42);plate.visible=name==='eatStanding'||name==='eat'||prop==='carryPlate';produce.visible=prop==='carryIngredients';book.visible=name==='study'||name==='read';cigarette.visible=name==='smoke';for(const weight of weights)weight.visible=name==='gym';const next=actions[name]??actions.idle;if(next===current)return;if(current)current.fadeOut(.2);next.reset().setEffectiveWeight(1).fadeIn(.2).play();current=next}
+ play('idle');return {root,mixer,play,update,setSleeping,head};
 }

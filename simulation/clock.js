@@ -22,3 +22,11 @@ export function clockRateAt(clock,gameTime){return clock.mode==='cycle29'?(isDay
 export function realElapsed(clock,from,to){
  return clock.mode==='cycle29'?coordinate(to)-coordinate(from):(to-from)/clock.rate;
 }
+
+// Proyecta la última lectura del servidor con el reloj monotónico del navegador.
+export function snapshotTime(snapshot,elapsedMs){
+ const {world,serverTime,serverWallTime,clockRate}=snapshot;
+ return world.simulationClock&&Number.isFinite(serverWallTime)
+  ?simulationTime(world.simulationClock,serverWallTime+elapsedMs)
+  :serverTime+elapsedMs*clockRate;
+}

@@ -32,6 +32,8 @@ for(const [cx,cz] of [[-10,-7],[10,-7],[-10,7],[10,7]]){
 }
 for(const [x,z] of [[-14,17],[14,17],[-17,14],[17,14]])obstacle(x,z,.45,.45);
 obstacle(6,16,2.5,.7);obstacle(-6,17,2,1.4);
+obstacle(-8.5,17.5,1.45,1.05);
+obstacle(-11.5,18.45,2.15,1.25);
 // Soporte de pesas dibujado en el gimnasio del jardín.
 obstacle(11.4,18.2,1.9,.7);
 for(const x of [-17,17])obstacle(x,19,1.6,1.3);

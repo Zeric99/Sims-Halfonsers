@@ -16,6 +16,11 @@ export function validateWorldEnvelope(world,{schemaVersion,simulationVersion}){
  if(!Number.isSafeInteger(world.eventSequence)||world.eventSequence<0)throw new TypeError('Secuencia de eventos inválida');
  const eventIds=new Set();
  for(const event of world.events){if(!object(event)||typeof event.id!=='string'||eventIds.has(event.id)||typeof event.type!=='string'||!Number.isFinite(event.at))throw new TypeError('Evento inválido o duplicado');eventIds.add(event.id)}
+ if(world.chronicle!=null&&(!object(world.chronicle)||!Number.isSafeInteger(world.chronicle.sequence)
+  ||world.chronicle.sequence<0||world.chronicle.sequence>world.eventSequence
+  ||!Array.isArray(world.chronicle.events)||world.chronicle.events.length>900
+  ||world.chronicle.events.some(e=>!object(e)||typeof e.id!=='string'||typeof e.type!=='string'||!Number.isFinite(e.at))))
+  throw new TypeError('Crónicas inválidas');
  for(const reservation of Object.values(world.reservations))if(!object(reservation)||typeof reservation.personId!=='string'||!Number.isFinite(reservation.until))throw new TypeError('Reserva inválida');
  if(world.simulationVersion>=5)for(const home of ['piso-1','piso-2','piso-3','piso-4'])if(!Number.isFinite(world.households?.[home]?.mess)||world.households[home].mess<0||world.households[home].mess>100)throw new TypeError('Estado doméstico inválido');
  const validPoint=p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.z);
@@ -86,6 +91,25 @@ export function validateWorldEnvelope(world,{schemaVersion,simulationVersion}){
     ||!Array.isArray(plan.keys)||plan.keys.some(key=>typeof key!=='string')
     ||(plan.seats!=null&&(!Array.isArray(plan.seats)||plan.seats.length!==2||plan.seats.some(seat=>!validPoint(seat))))))
     throw new TypeError('Destino del plan inválido');
+  }
+ }
+ if(world.groupEvents!=null){
+  if(!object(world.groupEvents))throw new TypeError('Agenda de grupo inválida');
+  for(const [id,event] of Object.entries(world.groupEvents)){
+   if(!object(event)||event.id!==id||!['dinner','anime','tournament','barbecue'].includes(event.kind)
+    ||!['scheduled','travelling','active','completed','cancelled'].includes(event.status)
+    ||!ids.has(event.hostId)||!Number.isFinite(event.scheduledAt)
+    ||!Array.isArray(event.attending)||event.attending.length>5||new Set(event.attending).size!==event.attending.length
+    ||event.attending.some(id=>!ids.has(id))||!object(event.replies)
+    ||Object.entries(event.replies).some(([id,reply])=>!ids.has(id)||!['accepted','busy','declined'].includes(reply)))
+    throw new TypeError('Evento de grupo inválido');
+   if(event.status==='travelling'&&!Number.isFinite(event.arriveBy))throw new TypeError('Trayecto de grupo inválido');
+   if(event.status==='active'&&(!Number.isFinite(event.start)||!Number.isFinite(event.end)||event.end<=event.start
+    ||(event.kind==='tournament'&&(!Array.isArray(event.ranking)||event.ranking.length!==event.attending.length||new Set(event.ranking).size!==event.ranking.length||event.ranking.some(id=>!event.attending.includes(id))))
+    ||!Number.isFinite(event.dialogue?.turnMs)||event.dialogue.turnMs<=0||!Array.isArray(event.dialogue.speakers)
+    ||event.dialogue.speakers.length!==6||event.dialogue.speakers.some(id=>!event.attending.includes(id))
+    ||!Array.isArray(event.dialogue.dialogue)||event.dialogue.dialogue.length!==6))
+    throw new TypeError('Diálogo de grupo inválido');
   }
  }
  return true;

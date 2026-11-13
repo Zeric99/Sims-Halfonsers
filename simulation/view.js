@@ -1,13 +1,24 @@
+import {isDay,snapshotTime,clockRateAt} from './clock.js';
 import {describeMemory,relevantMemories} from './memory.js';
 import {activities} from './plans.js';
+import {groupBeat,groupKinds} from './group-events.js';
 import {describeStory} from './stories.js';
 import { neighbourhoodHighlights } from './highlights.js';
 import { describeResident } from './resident-details.js';
+import {mountChronicle} from './chronicle-panel.js';
+import {mountLiveGuide} from './live-guide.js';
 const panel=document.querySelector('#resident-panel'),details=document.querySelector('#resident-details'),residentTitle=document.querySelector('#resident-title');
-let selectedResident=null,followed=null,visitStart=null;
-const query=new URLSearchParams(location.search),qa=location.hostname==='127.0.0.1'&&query.has('qa');
-if(qa){document.querySelector('.live-badge').textContent='ESCENA DE PRUEBA LOCAL';document.querySelector('.scene-label small').textContent='POSTURA AISLADA · SIN CAMBIAR LA PARTIDA'}
+let selectedResident=null,followed=null;
+const query=new URLSearchParams(location.search),local=['127.0.0.1','localhost'].includes(location.hostname),qa=local&&query.has('qa');
+if(qa){document.querySelector('.live-badge').textContent='ESCENA DE PRUEBA LOCAL';document.querySelector('.scene-label small').textContent='ESCENA AISLADA'}
+const renderChronicle=mountChronicle({recap:document.querySelector('#visit-recap'),archive:document.querySelector('#chronicle'),isQA:qa});
+const renderLiveGuide=mountLiveGuide(document.querySelector('#live-guide'));
+window.addEventListener('watch-scene',()=>{panel.hidden=true;selectedResident=null;document.querySelector('#world').scrollIntoView({block:'nearest'})});
 const followButton=document.querySelector('#resident-follow');
+window.addEventListener('resident-follow',event=>{
+ followed=event.detail.name;
+ followButton.textContent=followed&&followed===selectedResident?'Dejar de seguir':'Seguir con la cámara';
+});
 followButton.addEventListener('click',()=>{followed=followed===selectedResident?null:selectedResident;followButton.textContent=followed?'Dejar de seguir':'Seguir con la cámara';window.dispatchEvent(new CustomEvent('resident-follow',{detail:{name:followed}}))});
 document.querySelector('#watch-story').addEventListener('click',()=>{const world=window.sharedWorld?.world;if(!world)return;const person=world.people.find(p=>p.action?.id==='charlar')||world.people.find(p=>p.action?.meetingId||p.action?.planId);if(person){window.dispatchEvent(new CustomEvent('resident-select',{detail:{name:person.name}}));followed=person.name;followButton.textContent='Dejar de seguir';window.dispatchEvent(new CustomEvent('resident-follow',{detail:{name:followed}}))}});
 
@@ -61,25 +72,45 @@ window.addEventListener('resident-select',event=>{selectedResident=event.detail.
 document.querySelector('#resident-close').addEventListener('click',()=>{selectedResident=null;panel.hidden=true});
 const clock=document.querySelector('#world-clock'), list=document.querySelector('#world-activities'), events=document.querySelector('#world-events');
 let lastVersion=-1;
+let connectionLost=false;
+const clockFormat=new Intl.DateTimeFormat('es-ES',{timeZone:'UTC',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+function paintClock(){
+ const reading=window.sharedWorld;
+ if(!reading)return;
+ const at=snapshotTime(reading,performance.now()-reading.receivedAt);
+ const value=(isDay(at)?'☀ Día':'🌙 Noche')+' · '+clockFormat.format(at)+' · ciclo de 30 minutos';
+ const label=connectionLost?clock.dataset.lastTime+' · Reconectando…':value;
+ if(!connectionLost)clock.dataset.lastTime=value;
+ if(clock.textContent!==label)clock.textContent=label;
+}
+function paintLiveGuide(){
+ const reading=window.sharedWorld;
+ if(!reading)return;
+ const at=snapshotTime(reading,performance.now()-reading.receivedAt);
+ renderLiveGuide(reading.world,at,reading.world.simulationClock?clockRateAt(reading.world.simulationClock,at):reading.clockRate);
+}
 async function refresh(){
  try{
-  const response=await fetch(qa?'/api/qa-world?'+query:'/api/world',{cache:'no-store'});
+  const response=await fetch(qa?'/api/qa-world?'+query:'/api/world',{cache:'no-store',signal:AbortSignal.timeout(10000)});
   if(!response.ok)throw new Error('No disponible');
   const data=await response.json(),world=data.world;
   if(world.worldVersion<lastVersion)return;
   lastVersion=world.worldVersion;
-  window.sharedWorld=data;showResident();window.dispatchEvent(new CustomEvent('shared-world',{detail:data}));
-  const date=new Intl.DateTimeFormat('es-ES',{timeZone:'UTC',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(world.lastSimulatedAt);
-  const hour=new Date(world.lastSimulatedAt).getUTCHours();
-  clock.textContent=(hour>=7&&hour<23?'☀ Día':'🌙 Noche')+' · '+date+' · ciclo de 30 minutos';
-  visitStart??=world.lastSimulatedAt;
-  const recap=document.querySelector('#visit-recap'),storyNames=new Map(world.people.map(p=>[p.id,p.name]));
-  if(recap){const fragment=document.createDocumentFragment(),recent=world.events.filter(e=>e.at>=visitStart&&describeStory(e,storyNames)).slice(-5).reverse();for(const event of recent){const p=document.createElement('p');p.textContent=describeStory(event,storyNames);fragment.append(p)}if(!recent.length){const p=document.createElement('p');p.textContent='Las historias que ocurran mientras miras aparecerán aquí.';fragment.append(p)}recap.replaceChildren(fragment)}
+  data.receivedAt=performance.now();
+  connectionLost=false;
+  window.sharedWorld=data;
+  showResident();
+  window.dispatchEvent(new CustomEvent('shared-world',{detail:data}));
+  paintClock();
+  const storyNames=new Map(world.people.map(p=>[p.id,p.name]));
+  renderChronicle(world);
+  paintLiveGuide();
   document.querySelector('#watch-story').disabled=!world.people.some(p=>p.action?.id==='charlar'||p.action?.meetingId||p.action?.planId);
   const agenda=document.querySelector('#neighbourhood-agenda');
   const plans=Object.values(world.plans??{}).filter(p=>['scheduled','travelling','active'].includes(p.status))
    .sort((a,b)=>a.scheduledAt-b.scheduledAt);
-  agenda.hidden=!plans.length;
+  const groups=Object.values(world.groupEvents??{}).filter(g=>['scheduled','travelling','active'].includes(g.status));
+  agenda.hidden=!plans.length&&!groups.length;
   const entries=plans.map(plan=>{
    const li=document.createElement('li');
    const time=new Intl.DateTimeFormat('es-ES',{timeZone:'UTC',hour:'2-digit',minute:'2-digit'}).format(plan.scheduledAt);
@@ -87,7 +118,22 @@ async function refresh(){
    li.textContent=phase+' · '+time+' · '+plan.participants.map(id=>storyNames.get(id)).join(' y ')+' · '+activities[plan.kind].label;
    return li;
   });
-  agenda.querySelector('ul').replaceChildren(...entries);
+  const groupEntries=groups.map(group=>{
+   const li=document.createElement('li');li.className='group-agenda';
+   const title=document.createElement('strong'),status=document.createElement('span'),names=document.createElement('span');
+   const time=new Intl.DateTimeFormat('es-ES',{timeZone:'UTC',hour:'2-digit',minute:'2-digit'}).format(group.scheduledAt);
+   title.textContent=groupKinds[group.kind].title;
+   status.textContent=groupBeat(group,data.serverTime)?.label??(group.status==='scheduled'?'A las '+time:group.status==='travelling'?'De camino al jardín':'En curso');
+   names.textContent=group.attending.filter(id=>group.status!=='active'||world.people.find(p=>p.id===id)?.action?.groupId===group.id).map(id=>storyNames.get(id)).join(', ');
+   li.append(title,status,names);
+   if(group.status!=='scheduled'){
+    const button=document.createElement('button');button.className='follow-button';button.textContent='Ver encuentro de grupo';
+    button.addEventListener('click',()=>{panel.hidden=true;selectedResident=null;window.dispatchEvent(new CustomEvent('watch-group',{detail:{id:group.id}}))});
+    li.append(button);
+   }
+   return li;
+  });
+  agenda.querySelector('ul').replaceChildren(...groupEntries,...entries);
   const gossip=document.querySelector('#gossip-highlights');
   if(gossip){const wasOpen=Boolean(gossip.querySelector('details')?.open),stats=neighbourhoodHighlights(world),cards=document.createDocumentFragment();
    for(const [icon,title,entry,unit,empty] of [['✦','MEJOR ROLLO',stats.friendship,'amistad','Todavía no hay amistades registradas.'],['⚡','TENSIÓN',stats.tension,'tensión','Por ahora, reina la paz.']]){
@@ -138,6 +184,23 @@ async function refresh(){
    row.textContent=time+' · '+(describeStory(event,names)||messages[event.type]);diary.append(row);
   }
   events?.replaceChildren(diary);
- }catch{clock.textContent='No se ha podido conectar con el mundo compartido. Reintentando…'}
+ }catch{
+  connectionLost=true;
+  if(window.sharedWorld)paintClock();
+  else clock.textContent='No se ha podido conectar con el mundo compartido. Reintentando…';
+ }
 }
-refresh();if(!qa)setInterval(refresh,5000);
+async function pollWorld(){
+ await refresh();
+ if(!qa)setTimeout(pollWorld,5000);
+}
+pollWorld();
+setInterval(paintClock,250);
+setInterval(paintLiveGuide,1000);
+if(local&&query.has('inspector')){
+ import('./inspector.js').then(({mountInspector})=>mountInspector(document.querySelector('.scene-column'),window.sharedWorld));
+}
+
+if(local&&!qa){
+ import('./profile-editor.js').then(({mountProfileEditor})=>mountProfileEditor(panel));
+}

@@ -6,6 +6,8 @@ import {freeResource} from './resources.js';
 import {socialPulse} from './autonomy.js';
 import {consent, coolTension} from './relationships.js';
 import {canPauseForPlan, completePlan, hasUpcomingPlan, pausePlans, progressPlans} from './plans.js';
+import {hasGroupCommitment,pauseGroups,progressGroups} from './group-events.js';
+import {collectChronicle} from './chronicles.js';
 import { residents } from './profiles.js';
 import {createResident} from './resident-state.js';
 import { advanceNeeds, urgency } from './needs.js';
@@ -193,7 +195,7 @@ function positionDuring(action,fallback,at){
 }
 function addressUrgentNeed(world,p,at){
  const old=p.action;
- if(!old||(!old.planId&&!['practicar','ver_tv','pasear','jugar','estudiar','descansar','leer','esperar','limpiar','fumar'].includes(old.id)))return false;
+ if(!old||(!old.planId&&!old.groupId&&!['practicar','ver_tv','pasear','jugar','estudiar','descansar','leer','esperar','limpiar','fumar'].includes(old.id)))return false;
  const critical=p.needs.bano<12?'usar_bano':p.needs.saciedad<10?'comer':p.needs.energia<8?'dormir':null;
  if(!critical)return false;
  const resource=definitions[critical].resource;
@@ -212,6 +214,7 @@ export function resumeAfterAbsence(world,now,{idleThresholdMs=90000,wallNow=now,
  if(!force && wallNow-last<=idleThresholdMs)return false;
  world.reservations={};
  pausePlans(world,now);
+ pauseGroups(world,now);
  for(const c of Object.values(world.conversations??{}))if(!c.finished){c.finished=true;c.cancelled=true}
  for(const meeting of Object.values(world.meetings??{}))if(!meeting.finished){meeting.finished=true;meeting.cancelled=true}
  for(const p of world.people){
@@ -238,6 +241,8 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
   world.simulationVersion=5;
  }
  const end=Math.min(target,world.lastSimulatedAt+maxMinutes*MINUTE);
+ collectChronicle(world,world.lastSimulatedAt);
+ let nextChronicle=world.lastSimulatedAt+30*MINUTE;
  while(world.lastSimulatedAt<end){
   const at=world.lastSimulatedAt,step=Math.min(MINUTE,end-at),next=at+step;
   coolConflicts(world,at);
@@ -254,12 +259,13 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
    else reservation.until=action.until;
   }
   for(const p of world.people)addressUrgentNeed(world,p,at);
+  progressGroups(world,at,positionDuring,()=>random(world),step);
   progressPlans(world,at,positionDuring,()=>random(world));
   checkNoise(world,at);
   socialPulse(world,at,()=>random(world));
   // Una invitación puede interrumpir ocio tranquilo si ambos están disponibles,
   // cerca y han pasado al menos tres horas de juego desde su último encuentro.
-  const canInvite=p=>p.action&&!hasUpcomingPlan(world,p,at)&&!p.action.planId&&!p.action.meetingId&&(['leer','pasear','ver_tv','descansar'].includes(p.action.id)||(p.action.id==='practicar'&&p.action.activity!=='gimnasio'))
+  const canInvite=p=>p.action&&!hasUpcomingPlan(world,p,at)&&!hasGroupCommitment(world,p.id,at)&&!p.action.planId&&!p.action.meetingId&&(['leer','pasear','ver_tv','descansar'].includes(p.action.id)||(p.action.id==='practicar'&&p.action.activity!=='gimnasio'))
     &&at-p.action.start>=10*MINUTE&&at>=p.action.start+(p.action.travelMs||0)
     &&p.action.until-at>=5*MINUTE&&at-(p.lastSocialAt??-Infinity)>=3*HOUR;
   for(const a of world.people){
@@ -274,7 +280,7 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
    if(openConversation(world,a,b,at)){a.lastSocialAt=at;b.lastSocialAt=at}
   }
   // Dos personas libres y próximas pueden aceptar una charla; una sola acción compartida.
-  const available=world.people.filter(p=>!p.action&&!hasUpcomingPlan(world,p,at));
+  const available=world.people.filter(p=>!p.action&&!hasUpcomingPlan(world,p,at)&&!hasGroupCommitment(world,p.id,at));
   for(let i=0;i<available.length;i++){
    const a=available[i];if(a.action||random(world)>.35)continue;
    const b=available.slice(i+1).find(q=>!q.action&&q.homeId===a.homeId&&q.position&&a.position&&canTalkAt(q.position,a.position));
@@ -306,8 +312,10 @@ export function advanceWorld(world,target,{maxMinutes=720}={}){
    p.mood=moodFrom(p);
   }
   reflectAtNight(world,at,next);
+  if(next>=nextChronicle){collectChronicle(world,next);nextChronicle=next+30*MINUTE}
   world.lastSimulatedAt=next;
  }
+ collectChronicle(world,world.lastSimulatedAt);
  world.worldVersion++;
  return {world,complete:world.lastSimulatedAt>=target};
 }

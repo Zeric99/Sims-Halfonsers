@@ -38,7 +38,7 @@ export function socialBias(person,otherId,at){
 }
 
 const memoryLabels={
- invitation:'una invitación aceptada',rejection:'una invitación rechazada',plan_completed:'un plan completado',
+ invitation:'una invitación aceptada',rejection:'una invitación rechazada',plan_completed:'un plan completado',group_finished:'un encuentro de grupo',
  prank:'una broma',repair:'una conversación para arreglar las cosas',shared_interest:'una afición compartida',
  catch_up:'una charla',conversation:'una charla',plan:'un plan juntos',
  kitchen:'una espera en la cocina',noise:'una molestia por el volumen',noise_feedback:'una queja por la tele alta',

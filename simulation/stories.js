@@ -1,4 +1,5 @@
 import {activities} from './plans.js';
+import {groupKinds} from './group-events.js';
 
 export function describeStory(event,names){
  const who=(event.participants||[]).map(id=>names.get(id)||'Un vecino');
@@ -6,6 +7,21 @@ export function describeStory(event,names){
  const pair=who.join(' y ');
  const activity=activities[event.activity]?.label;
  switch(event.type){
+  case 'group_invited': {
+   const replies=Object.entries(event.replies??{});
+   const yes=replies.filter(([,r])=>r==='accepted').map(([id])=>names.get(id)).filter(Boolean);
+   const no=replies.filter(([,r])=>r!=='accepted').map(([id])=>names.get(id)).filter(Boolean);
+   return (names.get(event.hostId)||'Un vecino')+' propuso: '+groupKinds[event.groupKind]?.title+'.'
+    +(yes.length?' Se apuntaron '+yes.join(', ')+'.':' Nadie se apuntó.')
+    +(no.length?' Pasaron '+no.join(', ')+'.':'');
+  }
+  case 'group_travelling':return who.join(', ')+' van al rincón del jardín.';
+  case 'group_started':return 'Empieza: '+groupKinds[event.groupKind]?.title+'. En el jardín: '+who.join(', ')+'.';
+  case 'group_cancelled':return 'Se cancela el plan de grupo: '+event.reason+'.';
+  case 'group_finished':return event.outcome==='cleanup_dispute'
+   ?names.get(event.affectedId)+' y '+names.get(event.otherId)+' acabaron discutiendo por quién recogía.'
+   :event.outcome==='tournament_win'?(names.get(event.winnerId)||'Un vecino')+' ganó el torneo. '+who.join(', ')+' jugaron hasta la final.'
+   :groupKinds[event.groupKind]?.title+': '+who.join(', ')+' acabaron el plan con buen rollo.';
   case 'plan_proposed': return a+' propuso a '+b+' '+activity+'.';
   case 'plan_rescheduled': return b+' propuso quedar más tarde y '+a+' aceptó.';
   case 'plan_accepted': return pair+' quedaron para '+activity+'.';

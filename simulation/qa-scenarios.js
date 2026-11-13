@@ -1,7 +1,84 @@
+import {openConversation} from './social.js';
+import {attemptKitchenRepair,honorAgreement,recordIncident} from './conflicts.js';
 import {proposePlan,activities} from './plans.js';
+import {proposeGroup,groupKinds} from './group-events.js';
 import {createWorld,advanceWorld} from './world.js';
+import {collectChronicle} from './chronicles.js';
 // Solo lo sirve dev-server; nunca escribe en el mundo del usuario.
 export function qaScenario(kind='meal',phase='eating',personIndex=0){
+ if(kind==='guide'){
+  const fixture=qaScenario('spectator','repair');
+  const {world,serverTime}=fixture;
+  const [,,host,guest]=world.people;
+  const conflict=Object.values(world.conflicts)[0];
+  world.events=world.events.filter(e=>e.type!=='conversation_started'||e.at<=serverTime);
+  world.plans??={};
+  const id=world.worldId+':plan:'+(++world.eventSequence);
+  world.plans[id]={id,status:'scheduled',kind:'cooking',participants:[host.id,guest.id],scheduledAt:serverTime+140000,createdAt:serverTime};
+  collectChronicle(world,serverTime);
+  return {...fixture,clockRate:1,qaConflict:conflict.id};
+ }
+ if(kind==='chronicle'){
+  const {world}=qaScenario('group','tournament');
+  const group=Object.values(world.groupEvents)[0];
+  advanceWorld(world,group.end+120000);
+  const at=Date.UTC(2026,0,2,17),[a,b]=world.people;
+  const conflict=recordIncident(world,a,b,'dishes',at);
+  attemptKitchenRepair(world,{participants:[a.id,b.id],finished:true,conflictId:conflict.id},at+86400000,0);
+  world.qaPreviousVisit=world.eventSequence;
+  honorAgreement(world,b,'clean_dishes',at+2*86400000,a);
+  collectChronicle(world,at+2*86400000);
+  return {world,serverTime:at+2*86400000,clockRate:1,mode:'escenario_local'};
+ }
+ if(kind==='group'){
+  const at=Date.UTC(2026,0,1,17),world=createWorld({seed:42,now:at});
+  world.nextGroupCheck=world.nextPlanCheck=at+86400000;
+  const people=world.people.slice(0,5);
+  for(const [i,p] of world.people.entries()){
+   p.needs={saciedad:72,energia:100,higiene:100,compania:85,diversion:100,bano:100};
+   if(i<5)p.position={x:-1+i*.5,z:14};
+   p.action={id:'esperar',label:'descansando',start:at,until:at+86400000,travelMs:0,route:p.position?[p.position]:[]};
+  }
+  const type=Object.hasOwn(groupKinds,phase)?phase:'barbecue';
+  let draw=0;
+  const event=proposeGroup(world,people[0],people.slice(1),type,at,()=>++draw===4?.999:0);
+  let clock=event.scheduledAt;
+  while(event.status!=='active'&&clock<at+3*3600000){clock+=60000;advanceWorld(world,clock)}
+  if(event.status==='active'){
+   clock=event.start+Math.floor((event.end-event.start)*.37);
+   advanceWorld(world,clock);
+  }
+  return {world,serverTime:clock,clockRate:1,mode:'escenario_local'};
+ }
+ if(kind==='spectator'){
+  if(['cooking','prep','stove','serve'].includes(phase)){
+   const fixture=qaScenario('social','cooking');
+   const conversation=Object.values(fixture.world.conversations).find(c=>c.planId);
+   const offset={prep:0,stove:.35,serve:.79}[phase];
+   if(offset!==undefined)fixture.serverTime=conversation.start+offset*(conversation.end-conversation.start);
+   return {...fixture,clockRate:offset===undefined?20:1};
+  }
+  const at=Date.UTC(2026,0,1,15);
+  const world=createWorld({seed:42,now:at});
+  const [a,b]=world.people;
+  a.position={x:-11,z:-6};
+  b.position={x:-9.5,z:-6};
+  if(phase==='repair'){
+   recordIncident(world,a,b,'no_show',at-60*60000);
+  }else{
+   // El próximo identificador selecciona una broma del catálogo habitual.
+   world.eventSequence=4;
+   b.profile.traits.paciencia=phase==='offended'?.2:.8;
+  }
+  openConversation(world,a,b,at);
+  return {world,serverTime:at+(['laugh','offended','repair'].includes(phase)?8*60000+1000:1000),clockRate:phase==='prank'?20:1,mode:'escenario_local'};
+ }
+ if(kind==='night'){
+  const at=Date.UTC(2026,0,1,23,35);
+  const world=createWorld({seed:42,now:at-35*60000});
+  advanceWorld(world,at);
+  return {world,serverTime:at,clockRate:1,mode:'escenario_local'};
+ }
  if(kind==='evolution'){
   const {world}=qaScenario('social','result');
   const at=Date.UTC(2026,0,2,7,1);

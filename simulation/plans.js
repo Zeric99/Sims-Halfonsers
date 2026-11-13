@@ -6,6 +6,7 @@ import {openConversation} from './social.js';
 import {affinity, consent} from './relationships.js';
 import {hasAgreement, honorAgreement, recordIncident, releaseKitchen} from './conflicts.js';
 import {remember} from './memory.js';
+import {hasGroupCommitment} from './group-events.js';
 
 const MIN = 60000;
 const HOUR = 60*MIN;
@@ -19,7 +20,7 @@ export const activities = {
 
 const busyPlan = p => ['scheduled','travelling','active'].includes(p.status);
 export function canPauseForPlan(action) {
- return !action || (!action.meetingId && !action.planId
+ return !action || (!action.meetingId && !action.planId && !action.groupId
   && ['leer','ver_tv','descansar','pasear','practicar','esperar'].includes(action.id)
   && action.activity !== 'gimnasio');
 }
@@ -58,7 +59,8 @@ function venueFor(host,kind) {
 
 export function proposePlan(world,host,guest,kind,at,random) {
  const activity=activities[kind];
- if (!activity || host.id===guest.id || !available(host) || !available(guest)) return null;
+ if (!activity || host.id===guest.id || !available(host) || !available(guest)
+  ||[host,guest].some(p=>hasGroupCommitment(world,p.id,at,Infinity))) return null;
  const plans=world.plans??={};
  const participants=[host.id,guest.id];
  if (Object.values(plans).some(p=>busyPlan(p)&&p.participants.some(id=>participants.includes(id)))) return null;
@@ -178,7 +180,7 @@ export function progressPlans(world,at,positionDuring,random) {
  const historical=Object.values(plans).filter(p=>!busyPlan(p));
  for (const p of historical.slice(0,Math.max(0,historical.length-50))) delete plans[p.id];
  const availablePeople=world.people.filter(p=>p.position&&free(p)&&available(p)&&awake(p,at)
-  && at-(p.lastPlanAt??-Infinity)>=4*HOUR
+  && at-(p.lastPlanAt??-Infinity)>=4*HOUR&&!hasGroupCommitment(world,p.id,at,Infinity)
   && !Object.values(plans).some(plan=>busyPlan(plan)&&plan.participants.includes(p.id)));
  for (const host of availablePeople) {
   const goal=activeGoal(host,at);

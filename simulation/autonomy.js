@@ -4,11 +4,12 @@ import {DAY_RATE} from './clock.js';
 import {openConversation} from './social.js';
 import {remember} from './memory.js';
 import {hasUpcomingPlan} from './plans.js';
+import {hasGroupCommitment} from './group-events.js';
 import {affinity,consent} from './relationships.js';
 const MIN=60000;
 function onRoute(action,at){const route=action.route,distances=route.slice(1).map((p,i)=>Math.hypot(p.x-route[i].x,p.z-route[i].z));let left=distances.reduce((a,b)=>a+b,0)*Math.max(0,Math.min(1,(at-action.start)/(action.travelMs||1)));for(let i=0;i<distances.length;i++){if(distances[i]>0&&left<=distances[i]){const q=left/distances[i];return {x:route[i].x+(route[i+1].x-route[i].x)*q,z:route[i].z+(route[i+1].z-route[i].z)*q}}left-=distances[i]}return route.at(-1)}
 function log(world,type,at,extra){const event={id:world.worldId+':'+(++world.eventSequence),type,at,...extra};world.events.push(event);if(world.events.length>500)world.events.shift();return event}
-const ready=(world,p,at)=>!hasUpcomingPlan(world,p,at)&&p.action&&['leer','ver_tv','descansar','pasear','practicar'].includes(p.action.id)&&p.action.activity!=='gimnasio'&&!p.action.meetingId&&!p.action.planId&&at>=p.action.start+(p.action.travelMs||0)+5*MIN&&p.needs.energia>25&&p.needs.saciedad>25&&p.needs.bano>25&&at-(p.lastSocialAt??-Infinity)>3*3600000;
+const ready=(world,p,at)=>!hasGroupCommitment(world,p.id,at)&&!hasUpcomingPlan(world,p,at)&&p.action&&['leer','ver_tv','descansar','pasear','practicar'].includes(p.action.id)&&p.action.activity!=='gimnasio'&&!p.action.meetingId&&!p.action.planId&&!p.action.groupId&&at>=p.action.start+(p.action.travelMs||0)+5*MIN&&p.needs.energia>25&&p.needs.saciedad>25&&p.needs.bano>25&&at-(p.lastSocialAt??-Infinity)>3*3600000;
 export function socialPulse(world,at,random){
  world.meetings??={};
  for(const meeting of Object.values(world.meetings)){

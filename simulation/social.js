@@ -1,6 +1,6 @@
 import {remember,socialBias} from './memory.js';
 import {buildDialogue} from './dialogues.js';
-import {phraseForConversation} from './phrases.js';
+import {fillerForConversation,phraseForConversation} from './phrases.js';
 import {clamp, relation, relationshipLabel} from './relationships.js';
 import {hasAgreement, honorAgreement, recordIncident} from './conflicts.js';
 
@@ -37,6 +37,7 @@ export function openConversation(world,a,b,at,{plan,minutes=24}={}){
  if(conflict)c.conflictId=conflict.id;
  if(plan)c.planId=plan.id;
  c.lines=Object.fromEntries([a,b].map(p=>[p.id,phraseForConversation(c,p.id,world.phraseCatalog||[])]));
+ c.fillers=Object.fromEntries([a,b].map(p=>[p.id,fillerForConversation(c,p.id,world.phraseCatalog||[])]).filter(([,filler])=>filler));
  if(story==='prank')c.prankOffended=b.profile.traits.paciencia<.55||tension>=5;
  c.dialogue=buildDialogue(c,{plan,conflict,recent,uneasy:socialBias(a,b.id,at)<0});
  conversations[id]=c;
