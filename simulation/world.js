@@ -1,5 +1,6 @@
 // Núcleo determinista independiente de la representación y del alojamiento.
 import { DAY_RATE } from './clock.js';
+import {meiNeedsBreak} from './character-dialogues.js';
 import {activeGoal, advanceGoal, expireGoals, goalBonus, reflectAtNight} from './goals.js';
 import {recipeFor} from './recipes.js';
 import {freeResource} from './resources.js';
@@ -83,6 +84,8 @@ function choose(world,p,at){
   if(id==='ver_tv')score+=.10;
   if(id==='pasear')score+=.09;
   if(id==='fumar')score+=.12;
+  if(id==='fumar'&&meiNeedsBreak(p)&&safeForGoals)score+=.22;
+  if(id==='pasear'&&meiNeedsBreak(p)&&safeForGoals)score+=.12;
   const others=world.people.filter(other=>other.id!==p.id&&other.action?.id===id).length;
   if(id==='leer'&&others>=2)continue;
   if(!['dormir','comer','charlar'].includes(id))score-=Math.max(0,others-1)*.10;
@@ -138,6 +141,7 @@ function start(world,p,at,forced=null){
  const until=meal?.until??(at+travelMs+def.minutes*MINUTE);
  const hobby=selected.hobby||p.profile.interests[0];const label=gym?'levantando pesas en el gimnasio comunitario':selected.id==='practicar'&&hobby?'disfrutando de '+hobby:def.label;
  p.action={id:selected.id,label,start:at,until,resource:selected.key,route,travelMs};
+ if(selected.id==='fumar'&&meiNeedsBreak(p))p.action.label='haciendo una pausa para fumar en el jardín';
  if(rushing){p.action.bathroomRush=true;if(call)p.action.bathroomCall=call}
  if(gym)p.action.activity='gimnasio';
  if(selected.id==='ver_tv'&&(hasAgreement(world,p,'quiet_tv')||learnedQuiet(p,world,at+travelMs))){

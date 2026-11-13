@@ -149,3 +149,12 @@ Cuentas y formulario completo, edición visual avanzada, IA generativa obligator
 ## Cierre local de fase 1 (10 noviembre 2026)
 - Ver [FASE1-VERIFICACION.md](FASE1-VERIFICACION.md): implementación, escenarios reproducibles, pruebas y límites de la aceptación local.
 - La producción no contiene todavía esta entrega. No confundir comprobaciones históricas de Vercel con las pruebas locales nuevas.
+
+## Interfaz inmersiva y conversaciones personales — 13 noviembre 2026
+- [x] Juego a ventana completa al entrar; chat, directo, historias y vecinos opcionales, con vista lateral y control de pantalla completa.
+- [x] POV de los vecinos con cámara desde la cabeza y salida al mapa.
+- [x] Afinidades Madrid (Eric, Adrián, Pablo) y Barça (Arian, Aisuke, David), Delos comentando TikToks, sin asignar equipo al resto.
+- [x] Anécdotas por personaje, convivencia, conspiraciones absurdas ficticias y variantes de bromas.
+- [x] Evitar guiones recientemente oídos por cualquiera de los dos participantes, también con otras parejas; elección determinista compartida.
+- [x] Mei puede priorizar una pausa en el jardín cuando se satura, respetando necesidades y el intervalo de fumar existente.
+- [x] 123 pruebas automáticas superadas. Interfaz comprobada en navegador local en vista estrecha y de escritorio.

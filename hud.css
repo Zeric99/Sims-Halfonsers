@@ -68,7 +68,45 @@
 .spectator-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:10px 0 14px}
 .spectator-bar .follow-button{flex:none;margin:0 0 0 auto;min-height:36px}
 .spectator-bar .follow-button[aria-pressed="true"]{border-color:#718b4e;color:var(--lime)}
+.pov-banner{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.pov-banner strong{color:var(--lime);font-size:13px}
+.resident-pov-button{margin-left:6px}
+.hint .map-hint-extra{color:inherit;font-size:inherit;vertical-align:baseline;margin:0}
+.hint.pov-hint .map-hint-extra{display:none}
 .spectator-copy{min-width:0;padding-left:10px;border-left:2px solid var(--lime)}
 .spectator-copy strong{display:block;color:var(--white);font:700 20px/1.1 'Barlow Condensed',sans-serif}
 .spectator-copy p{margin-top:4px;color:#bac9d6;font-size:12px;line-height:1.4}
 @media(max-width:520px){.spectator-bar{align-items:flex-start;gap:8px}.spectator-copy strong{font-size:17px}.spectator-copy p{font-size:11px}}
+
+/* Immersive spectator interface: the world is the page, panels are optional. */
+.game-shell{--glass:#101923ed;--line:#ffffff19;--lime:#c2f68b;height:100dvh;overflow:hidden;background:#101923}
+.game-shell .topbar{position:fixed;inset:18px 22px auto;z-index:10;height:58px;padding:0 16px;border:1px solid #ffffff20;border-radius:16px;background:var(--glass);backdrop-filter:blur(18px);box-shadow:0 8px 32px #0003}
+.game-shell .brand-mark{height:34px;width:34px;border-radius:10px;box-shadow:none}
+.game-shell .brand-kicker{font-size:7px;letter-spacing:.2em}.game-shell h1{font-size:23px}
+.game-shell .topbar-right{gap:10px}.game-shell .topbar-label{display:none}.game-shell .live-badge{border:0;background:none;font-size:8px;padding:5px}
+.game-shell .dashboard{display:block;max-width:none;margin:0;padding:0;height:100dvh}
+.game-shell .scene-column{position:absolute;inset:0;min-width:0}
+.game-shell .world{position:absolute;inset:0;height:100%;min-height:0;border:0;border-radius:0;box-shadow:none}
+.game-shell .scene-heading{position:absolute;top:90px;left:24px;z-index:4;margin:0;pointer-events:none}.game-shell .scene-heading>div:first-child{display:none}
+.game-shell .clock-card{background:#101923d9;backdrop-filter:blur(14px);border:1px solid #ffffff20;padding:8px 12px;border-radius:12px;min-height:0}.game-shell .clock-icon{font-size:20px}.game-shell .clock-card .mini-label{font-size:7px}.game-shell .clock-card p{font-size:10px}
+.game-shell .scene-label{display:none}.game-shell .hint{bottom:92px;left:24px;padding:7px 10px;border-radius:8px;font-size:10px;background:#101923a8;border:0}.game-shell .hint>span:first-child{font-size:12px}
+.game-shell .spectator-bar{position:absolute;bottom:22px;left:24px;z-index:5;margin:0;max-width:calc(100% - 530px);display:flex;flex-wrap:wrap;gap:8px}
+.game-shell .camera-actions{margin:0;justify-content:flex-start;padding:5px;border:1px solid #ffffff20;background:var(--glass);backdrop-filter:blur(16px);border-radius:13px;gap:3px}
+.game-shell .camera-actions button{border:0;background:transparent;color:#bac7d3;padding:10px;font-size:11px;border-radius:8px}
+.game-shell .camera-actions button[aria-pressed=true]{background:#c2f68b;color:#14271b}
+.game-shell .spectator-copy,.game-shell .pov-banner{background:var(--glass);border-radius:10px;padding:10px 12px;max-width:340px}.game-shell .spectator-copy strong{font-size:18px}.game-shell .spectator-copy p{font-size:11px}
+.shell-button{border:1px solid #ffffff26;background:#ffffff09;color:#e8f0f1;border-radius:9px;padding:9px 12px;font-size:11px;font-weight:700}.shell-button:hover{background:#ffffff18}.icon-button{font-size:21px;padding:3px 10px}
+.game-dock{position:fixed;bottom:22px;right:24px;z-index:10;display:flex;gap:4px;padding:5px;border:1px solid #ffffff25;border-radius:14px;background:var(--glass);backdrop-filter:blur(18px);box-shadow:0 8px 32px #0004}
+.game-dock button{display:flex;align-items:center;gap:7px;padding:11px 14px;color:#bdcbd5;background:transparent;border:0;border-radius:9px;font-size:11px;font-weight:700}.game-dock button>span{font-size:17px;color:#c2f68b}.game-dock button:hover{background:#ffffff0c;color:white}.game-dock button[aria-expanded=true]{background:#c2f68b;color:#14271b}.game-dock button[aria-expanded=true]>span{color:inherit}
+.game-shell .sidebar{position:fixed;right:24px;top:90px;bottom:90px;width:370px;max-height:none;z-index:8;background:var(--glass);backdrop-filter:blur(22px);padding:16px;border:1px solid #ffffff22;border-radius:18px;box-shadow:0 16px 55px #0005;overflow:auto;overscroll-behavior:contain;display:none}
+.game-shell:not([data-panel=none]) .sidebar{display:block;animation:panel-enter .18s ease-out}
+.drawer-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-bottom:16px;margin-bottom:12px;border-bottom:1px solid #ffffff1c;font-size:16px;font-weight:700}.drawer-heading .close-button{height:29px;width:29px;border:0;background:#ffffff0b}
+.shell-section-hidden{display:none!important}.game-shell .sidebar-head,.game-shell .sidebar-foot{display:none}
+.game-shell .box,.game-shell .accordion{background:#ffffff04;border-color:#ffffff12;box-shadow:none;border-radius:12px;padding:14px;margin-bottom:12px}.game-shell .section-heading h2{font:700 17px/1.2 'DM Sans',sans-serif;letter-spacing:-.03em}.game-shell .eyebrow{font-size:8px}.game-shell .section-icon{width:28px;height:28px;font-size:17px;background:#c2f68b12}
+.game-shell .chat-box{border:0;padding:0;margin:0;background:none}.game-shell .chat-box>.section-heading{display:none}.game-shell .chat-messages{height:calc(100dvh - 480px);min-height:90px;max-height:none}.game-shell .chat-messages p{font-size:12px;padding:12px 2px;line-height:1.6}.game-shell .chat-form textarea{min-height:64px;resize:none}.game-shell .chat-form input,.game-shell .chat-form textarea{background:#080f17aa;border-color:#ffffff20;border-radius:9px}.game-shell .chat-form button{border-radius:9px;padding:12px}.game-shell .event-log{max-height:45dvh}
+.game-shell .resident-card{position:absolute;z-index:7;top:150px;left:24px;right:auto;width:340px;max-height:calc(100dvh - 250px);overflow:auto;margin:0;padding:18px;background:var(--glass);backdrop-filter:blur(18px);border:1px solid #ffffff20;border-radius:16px;box-shadow:0 14px 40px #0004}
+.game-shell.panels-docked:not([data-panel=none]) .scene-column{right:402px}.game-shell.panels-docked:not([data-panel=none]) .sidebar{right:16px;width:370px}.game-shell.panels-docked .spectator-bar{max-width:calc(100% - 48px)}
+@keyframes panel-enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:1050px){.game-shell .live-badge{display:none}.game-shell .spectator-bar{bottom:84px;max-width:calc(100% - 48px)}.game-shell .hint{display:none}.game-shell .sidebar{bottom:150px}.game-shell .chat-messages{height:calc(100dvh - 520px)}.game-shell .game-dock{right:20px}.game-shell .resident-card{max-height:calc(100dvh - 290px)}}
+@media(max-width:650px){.game-shell .topbar{inset:10px 10px auto;height:54px;padding:0 10px;border-radius:12px}.game-shell .brand{gap:7px}.game-shell .brand-mark{width:26px;height:30px;font-size:17px}.game-shell h1{font-size:18px}.game-shell .brand-kicker{display:none}.shell-button{font-size:10px;padding:8px}.icon-button{font-size:19px;padding:4px 7px}.game-shell .topbar-right{gap:5px}.game-shell .scene-heading{top:74px;left:12px}.game-shell .clock-card{max-width:none}.game-shell .spectator-bar{left:12px;bottom:80px;max-width:calc(100% - 24px)}.game-shell .camera-actions button{font-size:10px;padding:8px}.game-shell .game-dock{left:10px;right:10px;bottom:12px;justify-content:space-around}.game-dock button{padding:9px 8px;font-size:10px;gap:5px}.game-shell .sidebar,.game-shell.panels-docked:not([data-panel=none]) .sidebar{top:122px;bottom:130px;left:10px;right:10px;width:auto;padding:14px}.game-shell.panels-docked:not([data-panel=none]) .scene-column{right:0}.game-shell .resident-card{top:122px;left:10px;width:calc(100% - 20px);max-height:calc(100dvh - 260px)}.game-shell .chat-messages{height:calc(100dvh - 530px);min-height:65px}.game-shell .drawer-heading{padding-bottom:9px;margin-bottom:8px}.game-shell .chat-form{margin-top:6px;gap:3px}.game-shell .chat-form textarea{min-height:48px}.game-shell .pov-banner strong{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.game-shell:not([data-panel=none]) .sidebar{animation:none}}

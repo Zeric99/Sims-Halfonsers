@@ -1,4 +1,5 @@
 import {mountSpectator} from './simulation/spectator-camera.js';
+import {mountResidentPov} from './simulation/resident-pov.js';
 import { snapshotTime, clockRateAt, realElapsed, isDay } from './simulation/clock.js';
 import { createSpeechOverlay } from './simulation/speech-overlay.js';
 import { createMii } from './simulation/mii-rig.js';
@@ -137,7 +138,7 @@ const rooms=[[x0,z0],[x0+3.5,z0],[x0+7,z0],[x0+10.5,z0]];
 for(let i=0;i<n;i++){let [x,z]=rooms[i];box(x+1.75,.11,z+2.5,3.45,.08,4.9,materials.wood);interior.bedroom(names[i],x,z,bed);box(x+2.7,.4,z+1.1,.8,.65,.7,materials.brown);box(x+3.5,.55,z+2.45,.12,1.0,4.9,materials.wall);roomPositions.push({name:names[i],x:x+2.5,z:z+3.7,bedX:x+1.15,bedZ:z+2.4});
 // Escritorio, silla, monitor y accesorios individuales.
 box(x+2.55,.60,z+1.12,1.35,.12,.75,materials.brown);for(const dx of [-.55,.55])box(x+2.55+dx,.3,z+1.12,.1,.6,.65,materials.brown);
-box(x+2.55,1.05,z+.84,.85,.58,.08,mat(0x344a50));box(x+2.55,1.05,z+.79,.72,.43,.02,mat(0x77b5b6));box(x+2.55,.48,z+2.0,.6,.13,.6,materials.dark);box(x+2.55,.78,z+2.27,.6,.65,.12,materials.dark);
+box(x+2.55,1.05,z+.84,.85,.58,.08,mat(0x344a50));box(x+2.55,1.05,z+.888,.72,.43,.02,mat(0x77b5b6));box(x+2.55,.48,z+2.0,.6,.13,.6,materials.dark);box(x+2.55,.78,z+2.27,.6,.65,.12,materials.dark);
 box(x+2.55,.71,z+1.45,.75,.025,.22,mat(0xd8ded4));for(let k=0;k<4;k++)box(x+2.28+k*.18,.73,z+1.44,.12,.01,.035,mat(0x70817b));box(x+2.55,.79,z+.96,.07,.18,.12,mat(0x3e5050));box(x+2.55,.72,z+.99,.35,.04,.22,mat(0x3e5050));for(const dx of [-.2,.2])for(const dz of [-.2,.2])box(x+2.55+dx,.22,z+2+dz,.07,.43,.07,materials.brown);
 const hobbies={Eric:'camera',Aisuke:'gym',Snow:'camera',Adrián:'gym',Arian:'screen',Delos:'music',Linkal:'gym',Catalán:'ball',May:'screen',Mei:'art',Pablo:'screen',Lolo:'screen',David:'screen',Yaiza:'study'};
 const hobby=hobbies[names[i]];
@@ -339,6 +340,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{press=e.button===0?{x:e.c
 renderer.domElement.addEventListener('pointercancel',()=>{press=null});
 renderer.domElement.addEventListener('pointerup',e=>{
  if(!press||press.id!==e.pointerId||Math.hypot(e.clientX-press.x,e.clientY-press.y)>5){press=null;return}press=null;
+ if(pov.resident)return;
  const rect=renderer.domElement.getBoundingClientRect();if(!rect.width||!rect.height)return;
  pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);
  raycaster.setFromCamera(pointer,camera);
@@ -364,11 +366,18 @@ function acceptWorld(detail){
 window.addEventListener('shared-world',event=>acceptWorld(event.detail));
 if(window.sharedWorld)acceptWorld(window.sharedWorld);
 const projectedSpeech=new THREE.Vector3();
+const headEdge=new THREE.Vector3();
 const renderSpeech=createSpeechOverlay(root,people,(anchor,radius)=>{
- if(!radius)return projectedSpeech.set(anchor.x,anchor.y,anchor.z).project(camera);
- anchor.getWorldPosition(projectedSpeech).project(camera);
+ const activeCamera=pov.resident?pov.camera:camera;
+ if(!radius)return projectedSpeech.set(anchor.x,anchor.y,anchor.z).project(activeCamera);
+ if(pov.resident?.rig.head===anchor)return null;
+ anchor.getWorldPosition(projectedSpeech);
+ headEdge.copy(projectedSpeech).addScaledVector(activeCamera.up,radius);
+ projectedSpeech.project(activeCamera);
  if(Math.abs(projectedSpeech.z)>1)return null;
- const r=root.clientHeight*radius*camera.zoom/(camera.top-camera.bottom);
+ const r=pov.resident
+  ?Math.abs(headEdge.project(activeCamera).y-projectedSpeech.y)*root.clientHeight/2
+  :root.clientHeight*radius*camera.zoom/(camera.top-camera.bottom);
  return {x:(1+projectedSpeech.x)*root.clientWidth/2-r,y:(1-projectedSpeech.y)*root.clientHeight/2-r,w:r*2,h:r*2};
 });
 function positionAt(action,fallback,now){
@@ -383,7 +392,8 @@ function positionAt(action,fallback,now){
  for(let i=0;i<lengths.length;i++){if(left<=lengths[i]&&lengths[i]>0){const a=route[i],b=route[i+1],q=left/lengths[i];return {x:a.x+(b.x-a.x)*q,z:a.z+(b.z-a.z)*q,angle:Math.atan2(b.x-a.x,b.z-a.z),walking:now<action.start+action.travelMs}}left-=lengths[i]}
  return route[route.length-1];
 }
-function resize(){const w=root.clientWidth,h=root.clientHeight;if(!w||!h)return;renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1,2.5));renderer.setSize(w,h,false);const aspect=w/h;camera.left=-18*aspect;camera.right=18*aspect;camera.top=18;camera.bottom=-18;if(overview)camera.zoom=overviewZoom(aspect,currentView==='top');camera.updateProjectionMatrix()}window.addEventListener('resize',resize);resize();
+const pov=mountResidentPov(renderer.domElement,people,controls);
+function resize(){const w=root.clientWidth,h=root.clientHeight;if(!w||!h)return;renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1,2.5));renderer.setSize(w,h,false);const aspect=w/h;camera.left=-18*aspect;camera.right=18*aspect;camera.top=18;camera.bottom=-18;if(overview)camera.zoom=overviewZoom(aspect,currentView==='top');camera.updateProjectionMatrix();pov.resize(aspect)}window.addEventListener('resize',resize);resize();
 let followName=null;const followTarget=new THREE.Vector3(),followDelta=new THREE.Vector3();
 window.addEventListener('manual-camera-view',()=>{if(followName)window.dispatchEvent(new CustomEvent('resident-follow',{detail:{name:null}}))});
 window.addEventListener('resident-follow',event=>{followName=event.detail.name;});
@@ -504,6 +514,7 @@ function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?
  if(followName){const target=people.find(p=>p.name===followName);if(target){followTarget.set(target.g.position.x,.8,target.g.position.z);followDelta.copy(followTarget).sub(controls.target).multiplyScalar(Math.min(1,frameSeconds*5));controls.target.add(followDelta);camera.position.add(followDelta)}}
  updateSpectator(snapshot,now,frameSeconds,t);
  controls.update();
+ pov.update(frameSeconds);
  // Separar nombres en pantalla sin mover a los vecinos.
  const occupied=[];camera.updateMatrixWorld();
  function placeOverlay(p,sprite,height,width,visibleHeight){
@@ -525,9 +536,11 @@ function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?
  }
  for(const p of people)placeOverlay(p,p.tag,2.6,Math.min(2.4,.29*p.name.length),.56);
 
+ const activeCamera=pov.resident?pov.camera:camera;
+ activeCamera.updateMatrixWorld();
  renderSpeech(snapshot,now,end=>snapshot.simulationClock
   ?realElapsed(snapshot.simulationClock,end,now):(now-end)/clockRate);
- renderer.render(scene,camera);
+ renderer.render(scene,activeCamera);
 }
 requestAnimationFrame(animate);
 

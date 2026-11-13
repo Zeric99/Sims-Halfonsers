@@ -15,6 +15,19 @@ const renderChronicle=mountChronicle({recap:document.querySelector('#visit-recap
 const renderLiveGuide=mountLiveGuide(document.querySelector('#live-guide'));
 window.addEventListener('watch-scene',()=>{panel.hidden=true;selectedResident=null;document.querySelector('#world').scrollIntoView({block:'nearest'})});
 const followButton=document.querySelector('#resident-follow');
+const povButton=document.createElement('button');
+povButton.type='button';
+povButton.className='follow-button resident-pov-button';
+povButton.textContent='Ver desde sus ojos (POV)';
+followButton.after(povButton);
+povButton.addEventListener('click',()=>{
+ if(!selectedResident)return;
+ window.dispatchEvent(new CustomEvent('resident-pov',{detail:{name:selectedResident}}));
+ selectedResident=null;
+ panel.hidden=true;
+ document.querySelector('#world').scrollIntoView({block:'nearest'});
+ document.querySelector('#pov-exit').focus({preventScroll:true});
+});
 window.addEventListener('resident-follow',event=>{
  followed=event.detail.name;
  followButton.textContent=followed&&followed===selectedResident?'Dejar de seguir':'Seguir con la cámara';

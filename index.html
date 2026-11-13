@@ -9,16 +9,17 @@
 <link rel="stylesheet" href="./hud.css">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
 </head>
-<body>
+<body class="game-shell" data-panel="none">
 <header class="topbar">
  <div class="brand"><span class="brand-mark" aria-hidden="true">◆</span><div><div class="brand-kicker">UNA HISTORIA DE CONVIVENCIA</div><h1>SIMS <span>HALFONCERS</span></h1></div></div>
- <div class="topbar-right"><div class="live-badge"><span></span> MUNDO COMPARTIDO</div><div class="topbar-label">14 VECINOS <i></i> 4 PISOS</div></div>
+ <div class="topbar-right"><button id="layout-toggle" class="shell-button" type="button" aria-pressed="false">▣ Vista con paneles</button><button id="fullscreen-toggle" class="shell-button icon-button" type="button" aria-label="Pantalla completa del navegador" title="Pantalla completa">⛶</button><div class="live-badge"><span></span> MUNDO COMPARTIDO</div><div class="topbar-label">14 VECINOS <i></i> 4 PISOS</div></div>
 </header>
 <main class="dashboard">
  <div class="scene-column">
   <div class="scene-heading"><div><span class="eyebrow">BIENVENIDO AL BARRIO</span><h2>La vida en directo<span class="accent-dot">.</span></h2></div><div class="clock-card"><span class="clock-icon">◷</span><div><span class="mini-label">HORA DEL BARRIO</span><p id="world-clock">Conectando con el mundo compartido…</p></div></div></div>
-  <div class="world" id="world"><div class="error" id="loading">Cargando el mundo 3D…<br><small>Necesita conexión a internet y un navegador compatible con WebGL.</small></div><div class="scene-label"><span class="scene-label-icon">◇</span><span>VISTA DEL BARRIO<small>LA CASA HALFONCERS</small></span></div><div class="hint"><span>⌖</span> Haz clic en un vecino <b>·</b> <span id="camera-hint">Arrastra para girar</span> <b>·</b> Rueda para acercar</div></div>
+  <div class="world" id="world"><div class="error" id="loading">Cargando el mundo 3D…<br><small>Necesita conexión a internet y un navegador compatible con WebGL.</small></div><div class="scene-label"><span class="scene-label-icon">◇</span><span>VISTA DEL BARRIO<small>LA CASA HALFONCERS</small></span></div><div class="hint"><span>⌖</span><span class="map-hint-extra"> Haz clic en un vecino <b>·</b> </span><span id="camera-hint">Arrastra para girar</span><span class="map-hint-extra"> <b>·</b> Rueda para acercar</span></div></div>
   <section class="spectator-bar" aria-label="Cámara del barrio">
+   <div id="pov-banner" class="pov-banner" hidden><strong id="pov-name"></strong><button id="pov-exit" class="follow-button" type="button">Volver al mapa</button></div>
    <div class="spectator-copy" id="spectator-copy" hidden>
     <strong id="spectator-title"></strong>
     <p id="spectator-context"></p>
@@ -31,7 +32,7 @@
   </section>
   <section class="box resident-card" id="resident-panel" aria-labelledby="resident-title" hidden><div class="section-heading"><div><span class="eyebrow">FICHA DEL VECINO</span><h2 id="resident-title">Vecino</h2></div><button id="resident-close" class="close-button" type="button" aria-label="Cerrar ficha">✕</button></div><button id="resident-follow" type="button" class="follow-button">Seguir con la cámara</button><div id="resident-details" aria-live="polite"></div><section class="resident-phrases" aria-labelledby="phrase-title"><h3 id="phrase-title">Frases y muletillas</h3><p>Las frases salen como bocadillos. Las muletillas se cuelan al principio o al final de lo que dice.</p><h4>Frases</h4><ul id="phrase-list"></ul><h4>Muletillas</h4><ul id="filler-list"></ul><form id="phrase-form" class="chat-form"><label for="phrase-kind">QUÉ QUIERES AÑADIR</label><select id="phrase-kind"><option value="phrase">Frase</option><option value="filler">Muletilla</option></select><label for="phrase-text" id="phrase-label">AÑADIR FRASE</label><input id="phrase-text" maxlength="100" required placeholder="Escribe una frase…"><button type="submit">Guardar frase <span>↗</span></button><p id="phrase-status" class="chat-status" role="status"></p></form></section></section>
  </div>
- <aside class="sidebar" aria-label="Panel de la comunidad">
+ <aside class="sidebar" id="community-panel" aria-label="Panel de la comunidad" inert><div class="drawer-heading"><span id="drawer-title">Comunidad</span><button id="drawer-close" class="close-button" aria-label="Cerrar panel" type="button">✕</button></div>
   <div class="sidebar-head"><div><span class="eyebrow">EL BARRIO EN DIRECTO</span><h2>Centro social<span class="accent-dot">.</span></h2></div><span class="sidebar-icon">✳</span></div>
   <section id="live-guide" class="box live-guide" aria-labelledby="guide-title">
    <div class="section-heading"><div><span class="eyebrow">GUÍA DEL ESPECTADOR</span><h2 id="guide-title">Qué merece la pena ver</h2></div><span class="section-icon" aria-hidden="true">▶</span></div>
@@ -48,6 +49,6 @@
   <details class="accordion"><summary><span><span class="eyebrow">GUÍA RÁPIDA</span><strong>Señales de los vecinos</strong></span><span class="plus">+</span></summary><p>🟠 ! Necesidad urgente · 🔴 ! Conflicto · 🔵 ♪ Conversación · 💗 ♥ Buenas noticias · 🟣 Z Durmiendo</p></details>
   <p class="sidebar-foot">SIMS HALFONCERS <span>●</span> EN DESARROLLO</p>
  </aside>
-</main>
+</main><nav class="game-dock" aria-label="Paneles del barrio"><button type="button" data-panel-target="chat" aria-controls="community-panel" aria-expanded="false"><span>☏</span> Chat</button><button type="button" data-panel-target="live" aria-controls="community-panel" aria-expanded="false"><span>◉</span> En directo</button><button type="button" data-panel-target="stories" aria-controls="community-panel" aria-expanded="false"><span>✦</span> Historias</button><button type="button" data-panel-target="residents" aria-controls="community-panel" aria-expanded="false"><span>⌂</span> Vecinos</button></nav><script type="module" src="./simulation/interface.js"></script>
 <script type="module" src="./main.js"></script><script type="module" src="./simulation/view.js"></script><script type="module" src="./simulation/chat.js"></script><script type="module" src="./simulation/phrases-ui.js"></script>
 </body></html>

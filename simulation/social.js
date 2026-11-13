@@ -1,5 +1,6 @@
 import {remember,socialBias} from './memory.js';
 import {buildDialogue} from './dialogues.js';
+import {chooseCharacterDialogue} from './character-dialogues.js';
 import {fillerForConversation,phraseForConversation} from './phrases.js';
 import {clamp, relation, relationshipLabel} from './relationships.js';
 import {hasAgreement, honorAgreement, recordIncident} from './conflicts.js';
@@ -40,13 +41,18 @@ export function openConversation(world,a,b,at,{plan,minutes=24}={}){
  c.fillers=Object.fromEntries([a,b].map(p=>[p.id,fillerForConversation(c,p.id,world.phraseCatalog||[])]).filter(([,filler])=>filler));
  if(story==='prank')c.prankOffended=b.profile.traits.paciencia<.55||tension>=5;
  c.dialogue=buildDialogue(c,{plan,conflict,recent,uneasy:socialBias(a,b.id,at)<0});
+ if(!plan&&!['repair','prank'].includes(story)&&socialBias(a,b.id,at)>=0&&world.eventSequence%3!==0){
+  const heard=Object.values(conversations).filter(other=>!other.cancelled&&other.participants.some(id=>id===a.id||id===b.id)).sort((x,y)=>y.start-x.start);
+  c.dialogue=chooseCharacterDialogue(c,a,b,heard);
+  c.end=at+c.dialogue.length*8*60000;
+ }
  conversations[id]=c;
  for(const [person,other] of [[a,b],[b,a]]){
   const pos=person.position??{x:0,z:0};
   person.action={id:'charlar',label:(plan?planLabels[plan.kind]:'hablando')+' con '+other.name,
    start:at,until:c.end,resource:null,route:[pos],travelMs:0,conversationId:id};
  }
- if(!plan)addEvent(world,'conversation_started',at,{conversationId:id,participants:c.participants,topic});
+ if(!plan)addEvent(world,'conversation_started',at,{conversationId:id,participants:c.participants,topic:c.topic});
  return c;
 }
 

@@ -127,9 +127,17 @@ export function buildDialogue(conversation,{plan,conflict,recent=[],uneasy=false
    : [concern,reply,'Gracias por escucharme. A ver cómo nos va la próxima vez.'];
  }
  if(conversation.story==='prank'){
-  return conversation.prankOffended
-   ? ['Dicen que hoy limpias tú toda la casa… ¡Es broma!','Pues no me ha hecho ninguna gracia.','Vale, me he pasado. Lo dejo aquí.']
-   : ['Dicen que hoy limpias tú toda la casa… ¡Es broma!','Claro. ¿Y tú qué haces, supervisar desde el sofá?','No cuela, ¿eh? Va, si toca limpiar te echo una mano.'];
+  const variants=conversation.prankOffended ? [
+   ['He cambiado tu fondo de pantalla por una patata.','Pues no me toques el ordenador, en serio.','Vale, lo vuelvo a poner como estaba. Perdona.'],
+   ['Dicen que hoy limpias tú toda la casa… ¡Es broma!','Pues no me ha hecho ninguna gracia.','Vale, me he pasado. Lo dejo aquí.'],
+   ['Te había escondido el mando debajo del cojín.','Llevo un rato buscándolo. No tiene gracia.','Toma. La próxima te pregunto antes de hacer el tonto.']
+  ] : [
+   ['Dicen que hoy limpias tú toda la casa… ¡Es broma!','Claro. ¿Y tú qué haces, supervisar desde el sofá?','No cuela, ¿eh? Va, si toca limpiar te echo una mano.'],
+   ['Te he reservado una reunión urgente con la fregona.','Dile que le mande un correo a mi representante.','Tu representante es el cubo y ya ha confirmado.'],
+   ['He puesto una foto tuya de vigilante de la nevera.','Perfecto. Primera orden: nadie toca mi yogur.','Acabas de tomarte el cargo demasiado en serio.'],
+   ['Han llamado para darte un premio a la siesta.','Lo recojo después de dormir.','Ese compromiso con la profesión es lo que valora el jurado.']
+  ];
+  return choose(conversation,variants,recent,conversation.prankOffended?'broma:molesta':'broma:amistosa');
  }
  if(uneasy)return ['¿Te viene bien que hablemos un momento?','Un momento sí. Hoy estoy un poco a mi aire.','Vale, si te apetece seguimos otro día.'];
  const topic=conversation.topic||'el día';
