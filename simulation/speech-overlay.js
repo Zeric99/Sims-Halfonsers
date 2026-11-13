@@ -66,7 +66,13 @@ export function createSpeechOverlay(root,people,project){
    }
   };
   const groupTalk=Object.values(world?.groupEvents??{}).filter(event=>event.dialogue).map(event=>[event.id,event.dialogue]);
-  for(const [id,conversation] of [...Object.entries(world?.conversations??{}),...groupTalk]){
+  const bathroomCalls=(world?.people??[]).flatMap(person=>{
+   const action=person.action;
+   if(!action?.bathroomCall||now<action.start||now>=action.start+action.travelMs||elapsed(action.start)>3300)return [];
+   return [['bathroom:'+person.id+':'+action.start,{participants:[person.id],start:action.start,
+    end:action.start+action.travelMs,turnMs:action.travelMs,speakers:[person.id],dialogue:[action.bathroomCall]}]];
+  });
+  for(const [id,conversation] of [...bathroomCalls,...Object.entries(world?.conversations??{}),...groupTalk]){
    const end=conversation.cancelledAt??conversation.end;
    const messages=conversationMessages(conversation,now,now>=end?elapsed(end):0);
    if(!messages.length)continue;

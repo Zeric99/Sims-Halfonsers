@@ -8,6 +8,7 @@ import {consent, coolTension} from './relationships.js';
 import {canPauseForPlan, completePlan, hasUpcomingPlan, pausePlans, progressPlans} from './plans.js';
 import {hasGroupCommitment,pauseGroups,progressGroups} from './group-events.js';
 import {collectChronicle} from './chronicles.js';
+import {bathroomRush,bathroomCall,bathroomDeparture} from './bathroom.js';
 import { residents } from './profiles.js';
 import {createResident} from './resident-state.js';
 import { advanceNeeds, urgency } from './needs.js';
@@ -128,9 +129,16 @@ function start(world,p,at,forced=null){
  const [homeX,homeZ]=homes[p.homeId],sofaSeat=sofaSlot===null?null:{x:homeX+4.2+(sofaSlot-1)*.77,z:homeZ+4.8};
  const route=selected.id==='comer'?(meal?.stages[0].route??[]):routeFor(p,sofaSeat?{x:sofaSeat.x,z:homeZ+3.95}:gym?{x:9,z:17}:destination(p,selected.id));
  if(!route.length){const pos=p.position??roomPosition(p);p.action={id:'esperar',label:definitions.esperar.label,start:at,until:at+3*MINUTE,resource:null,route:[pos],travelMs:0};event(world,'route_blocked',p,at,{action:selected.id});return}
- let length=0;for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);const travelMs=Math.round(length*1500*DAY_RATE),until=meal?.until??(at+travelMs+def.minutes*MINUTE);
+ const rushing=selected.id==='usar_bano'&&bathroomRush(p);
+ const call=rushing?bathroomCall(p,selected.wasTalking):null;
+ let length=0;
+ for(let i=1;i<route.length;i++)length+=Math.hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);
+ const travelMs=Math.round(length*(rushing?(call==='¡Me cago!'?570:730):1500)*DAY_RATE)
+  +(bathroomDeparture({start:at,bathroomCall:call})-at);
+ const until=meal?.until??(at+travelMs+def.minutes*MINUTE);
  const hobby=selected.hobby||p.profile.interests[0];const label=gym?'levantando pesas en el gimnasio comunitario':selected.id==='practicar'&&hobby?'disfrutando de '+hobby:def.label;
  p.action={id:selected.id,label,start:at,until,resource:selected.key,route,travelMs};
+ if(rushing){p.action.bathroomRush=true;if(call)p.action.bathroomCall=call}
  if(gym)p.action.activity='gimnasio';
  if(selected.id==='ver_tv'&&(hasAgreement(world,p,'quiet_tv')||learnedQuiet(p,world,at+travelMs))){
   p.action.quiet=true;
@@ -189,24 +197,37 @@ function positionDuring(action,fallback,at){
  if(route.length===1||!action.travelMs||at>=action.start+action.travelMs)return route.at(-1);
  const lengths=route.slice(1).map((p,i)=>Math.hypot(p.x-route[i].x,p.z-route[i].z));
  const total=lengths.reduce((sum,n)=>sum+n,0);
- let left=total*Math.max(0,Math.min(1,(at-action.start)/action.travelMs));
+ const departure=bathroomDeparture(action);
+ let left=total*Math.max(0,Math.min(1,(at-departure)/Math.max(1,action.start+action.travelMs-departure)));
  for(let i=0;i<lengths.length;i++){const d=lengths[i];if(d&&left<=d){const a=route[i],b=route[i+1],q=left/d;return {x:a.x+(b.x-a.x)*q,z:a.z+(b.z-a.z)*q}}left-=d}
  return route.at(-1);
 }
 function addressUrgentNeed(world,p,at){
  const old=p.action;
- if(!old||(!old.planId&&!old.groupId&&!['practicar','ver_tv','pasear','jugar','estudiar','descansar','leer','esperar','limpiar','fumar'].includes(old.id)))return false;
- const critical=p.needs.bano<12?'usar_bano':p.needs.saciedad<10?'comer':p.needs.energia<8?'dormir':null;
+ if(!old)return false;
+ const canInterrupt=old.planId||old.groupId||['practicar','ver_tv','pasear','jugar','estudiar','descansar','leer','esperar','limpiar','fumar'].includes(old.id);
+ const critical=bathroomRush(p)&&(canInterrupt||old.conversationId)?'usar_bano':
+  canInterrupt&&p.needs.saciedad<10?'comer':canInterrupt&&p.needs.energia<8?'dormir':null;
  if(!critical)return false;
  const resource=definitions[critical].resource;
  const key=p.homeId+':'+resource+(resource==='bed'?':'+p.id:'');
  if(world.reservations[key]?.until>at&&world.reservations[key].personId!==p.id)return false;
  const position=positionDuring(old,p.position??roomPosition(p),at);
  if(!findRoute(position,destination(p,critical)).length)return false;
+ const conversation=old.conversationId&&world.conversations?.[old.conversationId];
+ const wasTalking=old.id==='charlar';
+ if(critical==='usar_bano'&&conversation&&!conversation.planId&&!conversation.finished){
+  conversation.finished=true;conversation.cancelled=true;conversation.cancelledAt=at;
+  for(const other of world.people.filter(q=>q!==p&&q.action?.conversationId===conversation.id)){
+   other.position=positionDuring(other.action,other.position,at);
+   other.action=null;
+  }
+ }
  if(old.resource&&world.reservations[old.resource]?.personId===p.id)delete world.reservations[old.resource];
  p.position=position;p.action=null;p.lastAction=old.id;
- event(world,'activity_interrupted',p,at,{action:old.id,reason:'necesidad urgente',nextAction:critical});
- start(world,p,at,{id:critical,key});return true;
+ event(world,'activity_interrupted',p,at,{action:old.id,reason:'necesidad urgente',nextAction:critical,
+  ...(critical==='usar_bano'&&wasTalking?{bathroomCall:bathroomCall(p,true)}:{})});
+ start(world,p,at,{id:critical,key,wasTalking});return true;
 }
 // En ausencia de visitantes no se simulan hechos ni cambios sociales.
 export function resumeAfterAbsence(world,now,{idleThresholdMs=90000,wallNow=now,force=false}={}){

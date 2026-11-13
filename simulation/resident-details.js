@@ -13,7 +13,11 @@ export function describeResident(world,name,now){
  const arrive=a?a.start+(a.travelMs||0):0,travel=a&&now<arrive;
  let current=a?.label||'Sin actividad en curso',next='Todavía no ha decidido qué hará después.';
  const stage=mealStage(a,now),mealLabels={to_fridge:['Yendo a la nevera','Coger los ingredientes.'],fridge:['Cogiendo ingredientes','Ir a los fogones.'],to_stove:['Yendo a los fogones','Preparar la comida.'],cooking:['Preparando la comida','Ir a la mesa.'],to_table:['Llevando la comida a la mesa','Sentarse a comer.'],eating:['Comiendo en la mesa','Todavía no ha decidido qué hará después.']};
- if(stage&&mealLabels[stage.kind]){[current,next]=mealLabels[stage.kind];if(a.meal.recipeName&&['cooking','eating'].includes(stage.kind))current+=(stage.kind==='cooking'?': ':': ')+a.meal.recipeName}
+ if(a?.id==='usar_bano'&&travel){
+  current=a.bathroomRush?'Corriendo al baño':'Yendo al baño';
+  next='Sentarse en el váter.';
+ }
+ else if(stage&&mealLabels[stage.kind]){[current,next]=mealLabels[stage.kind];if(a.meal.recipeName&&['cooking','eating'].includes(stage.kind))current+=(stage.kind==='cooking'?': ':': ')+a.meal.recipeName}
  else if(travel){current='Yendo a: '+(a.label||a.id);next=a.id==='comer'&&a.meal?'Al llegar: preparar la comida.':'Al llegar: '+(a.label||a.id)+'.'}
  else if(a?.id==='comer'&&a.meal&&now<arrive+a.meal.prepareMs){current='Preparando la comida';next='Comer cuando termine de prepararla.'}
  const labels={esperar:'esperó un camino libre',practicar:'disfrutó de su afición',ver_tv:'vio la tele',pasear:'dio un paseo',dormir:'durmió',comer:'comió',usar_bano:'usó el baño',asearse:'se aseó',jugar:'jugó al ordenador',estudiar:'estudió',limpiar:'limpió la cocina',descansar:'descansó',leer:'leyó',charlar:'charló',fumar:'fumó'};

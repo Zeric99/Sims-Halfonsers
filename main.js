@@ -8,6 +8,9 @@ import { mealPosition, mealStage } from './simulation/meal-stage.js';
 import {conversationGesture,cookingStage} from './simulation/scene-performance.js';
 import {groupBeat,groupVenue} from './simulation/group-events.js';
 import {speakingTurn} from './simulation/speech.js';
+import {bathroomDeparture,bathroomRush} from './simulation/bathroom.js';
+import {gardenFountain} from './simulation/garden-layout.js';
+import {createInteriorDecor} from './simulation/interior-decor.js';
 import {plot,isometricPolar,overviewZoom} from './simulation/camera-layout.js';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
@@ -47,7 +50,7 @@ const sceneQuery=new URLSearchParams(location.search);
 const scenario=sceneQuery.get('qa');
 if(['127.0.0.1','localhost'].includes(location.hostname)&&scenario&&!['night','spectator','group','chronicle','guide'].includes(scenario)){
  const kind=scenario;
- const [x,z]=['sleep','desk','computer'].includes(kind)?[-14,-10]:['bath','wash'].includes(kind)?[-15,-2]:kind==='social'&&sceneQuery.get('phase')==='gym'?[9,17]:[-8,-4];
+ const [x,z]=['sleep','desk','computer'].includes(kind)||kind==='bathroom'&&sceneQuery.get('phase')==='computer'?[-14,-10]:kind==='bathroom'?[-12,-4]:['bath','wash'].includes(kind)?[-15,-2]:kind==='social'&&sceneQuery.get('phase')==='gym'?[9,17]:[-8,-4];
  overview=false;controls.target.set(x,0,z);camera.position.set(x+36,36,z+36);camera.zoom=4.5;camera.updateProjectionMatrix();controls.update();
 }
 const ambient=new THREE.HemisphereLight(0xffffff,0x6c8061,2);scene.add(ambient);const sun=new THREE.DirectionalLight(0xfff3d8,2);sun.position.set(-15,35,20);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-27,right:27,top:27,bottom:-27,near:1,far:90});sun.shadow.bias=-0.0003;sun.shadow.normalBias=.035;scene.add(sun);
@@ -76,11 +79,13 @@ if(document.fonts)document.fonts.load('700 58px "DM Sans"').then(()=>textLabels.
 function label(text,x,y,z,color='#294036',scale=1){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTexture(text,48),transparent:true,depthTest:false,depthWrite:false}));s.scale.set(3.6*scale,.9*scale,1);s.position.set(x,y,z);scene.add(s)}
 
 box(plot.x,-.22,plot.z,plot.side,.4,plot.side,materials.grass);box(0,.01,0,4,.12,26,materials.wall);for(let z=-11;z<13;z+=2)box(0,.08,z,3.9,.03,.04,materials.white);
-function bed(x,z){const frame=mat(0x73513b),linen=mat(0xe9eddf),quilt=mat(0x78a99c);
+const interior=createInteriorDecor(scene,{box,soft,cylinder,mat});
+function bed(x,z,quilt,accent){const frame=mat(0x73513b),linen=mat(0xe9eddf);
  soft(x,.25,z,1.18,.28,1.85,frame,.08);for(const dx of [-.44,.44])for(const dz of [-.72,.72])cylinder(x+dx,.14,z+dz,.065,.075,.25,frame);
  soft(x,.47,z,1.06,.24,1.68,linen,.1);soft(x,.61,z+.27,1.05,.18,1.05,quilt,.09);
- soft(x,.64,z-.48,.77,.16,.34,materials.white,.1);soft(x,.77,z-.91,1.22,.9,.14,frame,.08);
- box(x,.72,z+.46,.98,.02,.025,mat(0xaed1c0));box(x,.72,z+.1,.98,.02,.025,mat(0xaed1c0));}
+ soft(x,.64,z-.48,.77,.16,.34,accent,.1);soft(x,.77,z-.91,1.22,.9,.14,frame,.08);
+ soft(x,.705,z-.16,.96,.042,.17,accent,.025);
+}
 function diningChair(x,z,dir){const m=mat(0x765943),pad=mat(0x7eaaa1);soft(x,.48,z,.55,.13,.52,pad,.06);for(const dx of [-.2,.2])for(const dz of [-.18,.18])cylinder(x+dx,.24,z+dz,.035,.035,.46,m);soft(x,.82,z+dir*.23,.55,.65,.1,m,.04);soft(x,.83,z+dir*.18,.42,.46,.06,pad,.04)}
 function oval(x,y,z,w,h,d,m){const o=new THREE.Mesh(new THREE.SphereGeometry(1,24,16),m);o.position.set(x,y,z);o.scale.set(w/2,h/2,d/2);o.castShadow=true;o.receiveShadow=true;scene.add(o);return o}
 function sofa(x,z){const first=scene.children.length;const fabric=mat(0x638f87), cushion=mat(0x86b0a3), legs=mat(0x624b3c);
@@ -129,7 +134,7 @@ function kitchenDetails(cx,cz,n,door){
 function flat(cx,cz,n,title,names){const x0=cx-7,z0=cz-6;box(cx,.03,cz,14,.15,12,materials.wood); // cutaway low walls
 box(cx,.45,z0,14,.8,.12,materials.wall);for(const side of [-1,1]){const wx=cx+side*7;if((cx<0&&side===1)||(cx>0&&side===-1)){box(wx,.45,cz-4,.12,.8,4,materials.wall);box(wx,.45,cz+3,.12,.8,6,materials.wall)}else box(wx,.45,cz,.12,.8,12,materials.wall)}
 const rooms=[[x0,z0],[x0+3.5,z0],[x0+7,z0],[x0+10.5,z0]];
-for(let i=0;i<n;i++){let [x,z]=rooms[i];box(x+1.75,.11,z+2.5,3.45,.08,4.9,materials.wood);bed(x+1.15,z+2.4);box(x+2.7,.4,z+1.1,.8,.65,.7,materials.brown);box(x+3.5,.55,z+2.45,.12,1.0,4.9,materials.wall);roomPositions.push({name:names[i],x:x+2.5,z:z+3.7,bedX:x+1.15,bedZ:z+2.4});
+for(let i=0;i<n;i++){let [x,z]=rooms[i];box(x+1.75,.11,z+2.5,3.45,.08,4.9,materials.wood);interior.bedroom(names[i],x,z,bed);box(x+2.7,.4,z+1.1,.8,.65,.7,materials.brown);box(x+3.5,.55,z+2.45,.12,1.0,4.9,materials.wall);roomPositions.push({name:names[i],x:x+2.5,z:z+3.7,bedX:x+1.15,bedZ:z+2.4});
 // Escritorio, silla, monitor y accesorios individuales.
 box(x+2.55,.60,z+1.12,1.35,.12,.75,materials.brown);for(const dx of [-.55,.55])box(x+2.55+dx,.3,z+1.12,.1,.6,.65,materials.brown);
 box(x+2.55,1.05,z+.84,.85,.58,.08,mat(0x344a50));box(x+2.55,1.05,z+.79,.72,.43,.02,mat(0x77b5b6));box(x+2.55,.48,z+2.0,.6,.13,.6,materials.dark);box(x+2.55,.78,z+2.27,.6,.65,.12,materials.dark);
@@ -171,6 +176,7 @@ soft(cx+4.2,1.02,cz+3.45,1.6,.85,.08,materials.dark,.04);
 box(cx+4.2,1.02,cz+3.5,1.45,.7,.02,mat(0x547f95));
 for(let k=0;k<4;k++)box(cx+3.5+k*.15,.76,cz+3.45,.1,.16,.23,mat([0xb86e5f,0xd4bb79,0x84a9a3,0x7786ad][k]));
 const accent=mat(livingPalettes[n-1]);
+interior.livingRoom(cx,cz,accent);
 for(const dx of [-.85,.84])soft(cx+4.2+dx,.92,cz+5.01,.38,.37,.2,accent,.1).rotation.z=dx*.25;
 soft(cx+2.18,.42,cz+4.81,.59,.75,.52,materials.brown,.055);
 cylinder(cx+2.18,.84,cz+4.81,.19,.19,.03,materials.dark);
@@ -220,6 +226,57 @@ for(let i=0;i<14;i++){const x=-16+i*2.45,z=19.52+Math.sin(i*2.1)*.18;
  blossom.castShadow=false;
  cylinder(x,.23,z,.017,.022,.26,materials.dark);
 }
+const animateFountain=buildFountain();
+function buildFountain(){
+ const {x,z,radius}=gardenFountain;
+ const stone=mat(0xb3a88e),trim=mat(0xe6d8b9),mosaic=mat(0x28666c);
+ cylinder(x,.18,z,radius,radius*.95,.14,stone);
+ cylinder(x,.30,z,.93,.98,.23,stone);
+ cylinder(x,.407,z,.87,.87,.04,new THREE.MeshStandardMaterial({
+  color:0x47a9b2,roughness:.25,metalness:.22,emissive:0x12434e,emissiveIntensity:.4
+ }));
+ const ring=(r,t,y,material)=>{
+  const mesh=new THREE.Mesh(new THREE.TorusGeometry(r,t,8,48),material);
+  mesh.rotation.x=-Math.PI/2;
+  mesh.position.set(x,y,z);
+  scene.add(mesh);
+  return mesh;
+ };
+ ring(.91,.065,.43,trim).castShadow=true;
+ ring(.86,.022,.419,mosaic);
+ cylinder(x,.48,z,.21,.27,.15,trim);
+ cylinder(x,.67,z,.095,.145,.34,stone);
+ cylinder(x,.84,z,.29,.115,.10,trim);
+ cylinder(x,.902,z,.095,.17,.045,mosaic);
+ const ripples=Array.from({length:3},()=>ring(1,.016,.44,new THREE.MeshBasicMaterial({
+  color:0xd3ffff,transparent:true,depthWrite:false
+ })));
+ const drops=new THREE.InstancedMesh(new THREE.SphereGeometry(.035,8,6),
+  new THREE.MeshBasicMaterial({color:0xa6eff5,transparent:true,opacity:.87,depthWrite:false}),24);
+ drops.frustumCulled=false;
+ drops.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+ scene.add(drops);
+ const transform=new THREE.Object3D();
+ const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
+ return time=>{
+  const seconds=reducedMotion.matches?0:time/1000;
+  for(const [i,ripple] of ripples.entries()){
+   const phase=(seconds*.75+i/3)%1;
+   ripple.scale.setScalar(.22+.59*phase);
+   ripple.material.opacity=.52*Math.sin(Math.PI*phase);
+  }
+  for(let i=0;i<drops.count;i++){
+   const phase=(seconds*(.8+(i%3)*.12)+i*.137)%1;
+   const angle=i*2.39996+seconds*.2;
+   const spread=(.18+(i%5)*.11)*phase;
+   transform.position.set(x+Math.cos(angle)*spread,.91+.72*Math.sin(Math.PI*phase)-.46*phase,z+Math.sin(angle)*spread);
+   transform.scale.set(.68,1.2,.68);
+   transform.updateMatrix();
+   drops.setMatrixAt(i,transform.matrix);
+  }
+  drops.instanceMatrix.needsUpdate=true;
+ };
+}
 const groupProps={};
 {
  const {x,z}=groupVenue;
@@ -263,7 +320,7 @@ function makeReaction(){
 function setReaction(effect,kind){
  if(effect.last===kind)return;effect.last=kind;
  if(!kind){effect.ring.visible=false;effect.icon.visible=false;return}
- const styles={urgent:['!',0xffa236],conflict:['⚡',0xf26661],social:['•••',0x67cfff],good:['♥',0xf687b3],sleep:['Zzz',0x91a9f6]};
+ const styles={urgent:['!',0xffa236],bathroom:['💩',0xffc570],conflict:['⚡',0xf26661],social:['•••',0x67cfff],good:['♥',0xf687b3],sleep:['Zzz',0x91a9f6]};
  const [symbol,color]=styles[kind];effect.ring.material.color.setHex(color);effect.halo.material.color.setHex(color);effect.ring.visible=true;effect.icon.visible=true;
  const c=effect.canvas,ctx=c.getContext('2d');ctx.clearRect(0,0,256,256);
  const tint='#'+color.toString(16).padStart(6,'0');
@@ -320,7 +377,9 @@ function positionAt(action,fallback,now){
  if(route.length===1||!action.travelMs)return route[route.length-1];
  const lengths=[],total=route.slice(1).reduce((sum,p,i)=>{const d=Math.hypot(p.x-route[i].x,p.z-route[i].z);lengths.push(d);return sum+d},0);
  if(total===0)return route[route.length-1];
- let left=total*Math.max(0,Math.min(1,(now-action.start)/action.travelMs));
+ const departure=bathroomDeparture(action);
+ if(now<departure)return route[0];
+ let left=total*Math.max(0,Math.min(1,(now-departure)/Math.max(1,action.start+action.travelMs-departure)));
  for(let i=0;i<lengths.length;i++){if(left<=lengths[i]&&lengths[i]>0){const a=route[i],b=route[i+1],q=left/lengths[i];return {x:a.x+(b.x-a.x)*q,z:a.z+(b.z-a.z)*q,angle:Math.atan2(b.x-a.x,b.z-a.z),walking:now<action.start+action.travelMs}}left-=lengths[i]}
  return route[route.length-1];
 }
@@ -336,7 +395,7 @@ controls.addEventListener('start',()=>{
 });
 const updateSpectator=mountSpectator({controls,camera,people,Vector3:THREE.Vector3,root});
 let lastFrame=0;
-function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?Math.min(.05,(t-lastFrame)/1000):0;lastFrame=t;let now=0;if(snapshot){const byName=new Map(snapshot.people.map(p=>[p.name,p]));now=snapshotTime(reading,performance.now()-reading.receivedAt);
+function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?Math.min(.05,(t-lastFrame)/1000):0;lastFrame=t;animateFountain(t);let now=0;if(snapshot){const byName=new Map(snapshot.people.map(p=>[p.name,p]));now=snapshotTime(reading,performance.now()-reading.receivedAt);
  clockRate=snapshot.simulationClock?clockRateAt(snapshot.simulationClock,now):reading.clockRate;
  const night=!isDay(now);
  scene.background.setHex(night?0x253952:0xb8d99c);
@@ -357,12 +416,22 @@ function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?
  }
  const placements=[];for(const p of people){const state=byName.get(p.name);if(!state)continue;
  const latest=reactions.get(state.id),age=latest?now-latest.at:Infinity;
- const signal=latest&&age>=0&&age<clockRate*10000?latest.kind:(state.action?.id==='dormir'&&now>=state.action.start+(state.action.travelMs||0)?'sleep':null);
+ const toilet=state.action?.id==='usar_bano';
+ const bathroomWarning=toilet?state.action.bathroomRush&&now<state.action.start+state.action.travelMs:
+  state.action?.id!=='dormir'&&bathroomRush(state);
+ const signal=bathroomWarning?'bathroom':latest&&age>=0&&age<clockRate*10000?latest.kind:(state.action?.id==='dormir'&&now>=state.action.start+(state.action.travelMs||0)?'sleep':null);
  setReaction(p.reaction,signal);
- if(signal){const pulse=.9+.1*Math.sin(t*.006+p.phase);p.reaction.ring.scale.setScalar(pulse);p.reaction.ring.material.opacity=.30+.12*(1+Math.sin(t*.006+p.phase));p.reaction.icon.position.y=3.35+Math.sin(t*.002+p.phase)*.08}
+ if(signal){
+  const pulse=.9+.1*Math.sin(t*.006+p.phase);
+  p.reaction.ring.scale.setScalar(pulse);
+  p.reaction.ring.material.opacity=.30+.12*(1+Math.sin(t*.006+p.phase));
+  const bathroom=signal==='bathroom';
+  p.reaction.icon.position.set(bathroom?0:1.1,(bathroom?3.15:3.35)+Math.sin(t*.002+p.phase)*.08,0);
+  p.reaction.icon.scale.setScalar(bathroom?1:.8);
+ }
  const inGroup=Boolean(group&&state.action?.groupId===group.id);
  const conversation=inGroup?group.dialogue:state.action?.conversationId&&snapshot.conversations?.[state.action.conversationId];
- if(conversation&&now>=conversation.start&&now<conversation.end)p.reaction.icon.visible=false;
+ p.reaction.icon.visible=Boolean(signal&&(signal==='bathroom'||!(conversation&&now>=conversation.start&&now<conversation.end)));
  const where=positionAt(state.action,state.position??p.initial,now);
  // Pequeños desplazamientos compartidos durante actividades despiertas.
  const action=state.action,awake=action&&action.id!=='dormir';
@@ -375,8 +444,9 @@ function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?
  if(home&&['fridge','prep','cook','serve'].includes(culinary)){
   const stages=kitchenStages.get(home)??new Set();stages.add(culinary);kitchenStages.set(home,stages);
  }
- const sofaSeated=Boolean(arrived&&action?.seat);
- const seated=(arrived&&['jugar','estudiar'].includes(action?.id))||mealEating||sofaSeated;
+ const toiletSeated=Boolean(toilet&&arrived&&action.seat);
+ const sofaSeated=Boolean(arrived&&action?.seat&&!toilet);
+ const seated=(arrived&&['jugar','estudiar'].includes(action?.id))||mealEating||sofaSeated||toiletSeated;
  const cycle=awake&&arrived&&!seated&&!training&&!['comer','fumar'].includes(action.id)?(((now-action.start)/clockRate+p.phase*1000)%16000)/16000:0;
  const excursion=cycle<.25?cycle*4:cycle<.5?2-cycle*4:0;
  const sway=0; // Sin paseos laterales artificiales durante actividades quietas.
@@ -385,7 +455,7 @@ function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?
  const lie=sleeping?Math.max(0,Math.min(1,(now-(action.start+(action.travelMs||0)))/(clockRate*2000))):0;
  const seatStart=mealEating?stage.start:action?.start+(action?.travelMs||0);
  const seatBlend=seated?Math.max(0,Math.min(1,(now-seatStart)/(clockRate*1200))):0;
- const seat=mealEating?action.meal.seat:sofaSeated?action.seat:p.chair;
+ const seat=mealEating?action.meal.seat:sofaSeated||toiletSeated?action.seat:p.chair;
  const x=where.x+(p.bed.x-where.x)*lie+(seat.x-where.x)*seatBlend+sway,z=where.z+(p.bed.z-where.z)*lie+(seat.z-where.z)*seatBlend;
  const bob=0;
  placements.push({p,x,z,bob,fixed:!!sleeping||!!seated,walking:!!where.walking});
@@ -395,7 +465,7 @@ function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?
   if(target)p.g.rotation.y=Math.atan2(target.x-where.x,target.z-where.z);
  }else if(where.angle!==undefined)p.g.rotation.y=where.angle;else if(sway>0)p.g.rotation.y=cycle<.25?Math.PI/2:-Math.PI/2;
  if(inGroup)p.g.rotation.y=Math.atan2(groupVenue.x-where.x,groupVenue.z-where.z);
- p.avatar.position.set(0,1.06*lie-.18*seatBlend,.9*lie);p.avatar.rotation.x=-Math.PI/2*lie;p.avatar.scale.setScalar(1-.22*lie);p.rig.setSleeping(lie);
+ p.avatar.position.set(0,1.06*lie-(toiletSeated?.07:.18)*seatBlend,.9*lie);p.avatar.rotation.x=-Math.PI/2*lie;p.avatar.scale.setScalar(1-.22*lie);p.rig.setSleeping(lie);
  const eating=action?.id==='comer'&&(mealEating||(!stage&&arrived&&now>=action.start+(action.travelMs||0)+(action.meal?.prepareMs||0)));
  const gesture=conversationGesture(conversation,state.id,now);
  const pose=sofaSeated&&gesture?(gesture==='talk'?'explain':gesture)+'Seated':gesture;
@@ -405,7 +475,9 @@ function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?
   group.kind==='tournament'&&groupScene.index===1?'gamepad':
   ['dinner','barbecue'].includes(group.kind)&&groupScene.index===1?'eatStanding':
   group.kind==='barbecue'&&groupScene.index===0&&group.hostId===state.id?'cook':'listen';
- p.rig.play(groupAnim??anim,culinary);
+ const announcing=toilet&&now<bathroomDeparture(action);
+ const bathroomAnim=toiletSeated?'toilet':announcing?'talk':toilet&&action.bathroomRush&&where.walking?'run':null;
+ p.rig.play(bathroomAnim??groupAnim??anim,culinary);
 
  }
  for(const [homeId,{groups,x,z,door}] of kitchens){
@@ -424,7 +496,7 @@ function animate(t){requestAnimationFrame(animate);const frameSeconds=lastFrame?
   const distance=previous?Math.hypot(spot.x-previous.x,spot.z-previous.z):0;
   const speed=frameSeconds>0?Math.min(1.5,distance/frameSeconds):0;
   p.rig.mixer.timeScale=1;
-  p.rig.update(frameSeconds,spot.walking?Math.min(distance,.1):0);
+  p.rig.update(frameSeconds,spot.walking?Math.min(distance,.16):0);
   p.g.position.set(spot.x,spot.bob,spot.z);
   p.previousRendered={x:spot.x,z:spot.z};
  }

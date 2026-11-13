@@ -7,6 +7,8 @@ export function describeStory(event,names){
  const pair=who.join(' y ');
  const activity=activities[event.activity]?.label;
  switch(event.type){
+  case 'activity_interrupted':
+   return event.bathroomCall?(names.get(event.personId)||'Un vecino')+' dejó la charla para correr al baño. «'+event.bathroomCall+'»':null;
   case 'group_invited': {
    const replies=Object.entries(event.replies??{});
    const yes=replies.filter(([,r])=>r==='accepted').map(([id])=>names.get(id)).filter(Boolean);

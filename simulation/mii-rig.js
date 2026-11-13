@@ -62,20 +62,24 @@ export function createMii({color=0x648cc4,faceUrl=null,longHair=false}={}){
  const smoke=new THREE.Group();root.add(smoke);smoke.visible=false;
  const smokeGeometry=new THREE.SphereGeometry(1,8,6);
  const puffs=Array.from({length:9},(_,i)=>{const mesh=new THREE.Mesh(smokeGeometry,new THREE.MeshBasicMaterial({color:0xdde1e2,transparent:true,opacity:0,depthWrite:false}));smoke.add(mesh);return mesh});
- let smokeTime=0,smoking=false,walking=false,carrying=false,gaitDistance=0;
+ let smokeTime=0,smoking=false,walking=false,running=false,carrying=false,gaitDistance=0;
  const smokeOrigin=new THREE.Vector3();
  function setSleeping(blend){sleepBlend=blend;if(faceSprite){faceSprite.visible=blend<.5;facePlane.visible=blend>=.5;sphere.visible=blend>=.5}}
  function update(dt,distance=null){mixer.update(dt);
   if(walking){
    gaitDistance+=distance??dt*.667;
+   const stride=running?1.08:.84;
+   const step=running?.27:.21;
+   torso.rotation.x=running?.21:0;
+   torso.position.y=running?1.1+Math.abs(Math.sin(gaitDistance/stride*Math.PI*2))*.08:1.1;
    for(const [side,offset] of [['left',0],['right',.5]]){
-    const phase=(gaitDistance/.84+offset)%1;
+    const phase=(gaitDistance/stride+offset)%1;
     const stance=phase<.5,q=stance?phase*2:(phase-.5)*2;
-    const z=stance?.21-.42*q:-.21+.42*q;
-    const lift=stance?0:Math.sin(q*Math.PI)*.14;
+    const z=stance?step-2*step*q:-step+2*step*q;
+    const lift=stance?0:Math.sin(q*Math.PI)*(running?.24:.14);
     const down=.72-lift,length=Math.min(.759,Math.hypot(z,down));
     const bend=Math.acos(length/.76),hip=root.getObjectByName(side+'Hip'),knee=root.getObjectByName(side+'Knee');
-    root.getObjectByName(side+'Shoulder').rotation.x=carrying?-.7:Math.sin(phase*Math.PI*2)*.4;root.getObjectByName(side+'Elbow').rotation.x=carrying?-.85:-.3-Math.max(0,Math.sin(phase*Math.PI*2))*.25;
+    root.getObjectByName(side+'Shoulder').rotation.x=carrying?-.7:Math.sin(phase*Math.PI*2)*(running?.68:.4);root.getObjectByName(side+'Elbow').rotation.x=carrying?-.85:running?-1.1:-.3-Math.max(0,Math.sin(phase*Math.PI*2))*.25;
     hip.position.y=.8;hip.rotation.x=-Math.atan2(z,down)-bend;knee.rotation.x=2*bend;
     knee.children.at(-1).rotation.x=-(hip.rotation.x+knee.rotation.x);
    }
@@ -117,6 +121,10 @@ smoke.visible=smoking;if(!smoking){smokeTime=0;return}smokeTime+=dt;root.updateW
   clip('clean',[['rightShoulder',[-.9,-1.1,-.9,-.65,-.9]],['rightElbow',[-.2,-.4,-.6,-.3,-.2]],['torso',[.08,.12,.08,.04,.08]]]),
   clip('read',[['leftShoulder',[-.7,-.7,-.7,-.7,-.7]],['rightShoulder',[-.7,-.8,-.7,-.6,-.7]],['leftElbow',[-.7,-.7,-.7,-.7,-.7]],['rightElbow',[-.7,-.9,-.7,-.5,-.7]],['head',[.12,.15,.12,.1,.12]]]),
   clip('sit',[['leftHip',sitting],['rightHip',sitting],['leftKnee',knees],['rightKnee',knees]]),
+  clip('toilet',[['leftHip',sitting],['rightHip',sitting],['leftKnee',knees],['rightKnee',knees],
+   ['torso',[.10,.14,.10,.08,.10]],['leftShoulder',[-.38,-.42,-.38,-.35,-.38]],
+   ['rightShoulder',[-.38,-.35,-.38,-.42,-.38]],['leftElbow',[-.25,-.3,-.25,-.22,-.25]],
+   ['rightElbow',[-.25,-.22,-.25,-.3,-.25]]]),
   clip('eat',[['leftHip',sitting],['rightHip',sitting],['leftKnee',knees],['rightKnee',knees],['rightShoulder',[-.6,-.8,-.6,-.35,-.6]],['rightElbow',[-.8,-1.45,-.8,-.4,-.8]]]),
   clip('gamepad',[
    ['leftShoulder',[-.65,-.68,-.65,-.62,-.65]],['rightShoulder',[-.65,-.62,-.65,-.68,-.65]],
@@ -129,7 +137,7 @@ smoke.visible=smoking;if(!smoking){smokeTime=0;return}smokeTime+=dt;root.updateW
   clip('computer',[['leftHip',sitting],['rightHip',sitting],['leftKnee',knees],['rightKnee',knees],['leftShoulder',[-.75,-.8,-.75,-.7,-.75]],['rightShoulder',[-.75,-.7,-.75,-.8,-.75]],['leftElbow',[-.65,-.55,-.65,-.75,-.65]],['rightElbow',[-.65,-.75,-.65,-.55,-.65]]])
  ];
  // Ajustar cadera y torso al asiento sin acortar las piernas.
- const seatedClips=new Set(['sit','eat','study','computer',...seatedSocial.map(c=>c.name)]);
+ const seatedClips=new Set(['sit','toilet','eat','study','computer',...seatedSocial.map(c=>c.name)]);
  for(const animation of clips.filter(c=>seatedClips.has(c.name))){
   for(const [joint,y] of [['torso',1.03],['leftHip',.66],['rightHip',.66]])animation.tracks.push(new THREE.NumberKeyframeTrack(joint+'.position[y]',[0,1],[y,y]));
  }
@@ -138,6 +146,7 @@ smoke.visible=smoking;if(!smoking){smokeTime=0;return}smokeTime+=dt;root.updateW
  for(const animation of clips.filter(c=>['eat','study','computer','smoke'].includes(c.name)))animation.tracks.push(new THREE.NumberKeyframeTrack('rightWrist.rotation[z]',times,[0,.15,0,-.12,0]));
  for(const c of clips){for(const t of c.tracks)t.setInterpolation(THREE.InterpolateSmooth);if(c.name!=='walk')c.duration=1.8;for(const t of c.tracks)if(c.name!=='walk')for(let i=0;i<t.times.length;i++)t.times[i]*=1.8}
  const mixer=new THREE.AnimationMixer(root),actions=Object.fromEntries(clips.map(c=>[c.name,mixer.clipAction(c)]));let current=null;
- function play(name,prop=null){carrying=prop==='carryPlate'||prop==='carryIngredients';controller.visible=name==='gamepad';walking=name==='walk';smoking=name==='smoke';plate.position.set(prop==='carryPlate'?0:-.22,name==='eat'?.98:.9,.42);plate.visible=name==='eatStanding'||name==='eat'||prop==='carryPlate';produce.visible=prop==='carryIngredients';book.visible=name==='study'||name==='read';cigarette.visible=name==='smoke';for(const weight of weights)weight.visible=name==='gym';const next=actions[name]??actions.idle;if(next===current)return;if(current)current.fadeOut(.2);next.reset().setEffectiveWeight(1).fadeIn(.2).play();current=next}
+ actions.run=actions.walk;
+ function play(name,prop=null){carrying=prop==='carryPlate'||prop==='carryIngredients';controller.visible=name==='gamepad';const wasRunning=running;running=name==='run';walking=name==='walk'||running;if(wasRunning&&!running){torso.position.y=1.1;torso.rotation.x=0}smoking=name==='smoke';plate.position.set(prop==='carryPlate'?0:-.22,name==='eat'?.98:.9,.42);plate.visible=name==='eatStanding'||name==='eat'||prop==='carryPlate';produce.visible=prop==='carryIngredients';book.visible=name==='study'||name==='read';cigarette.visible=name==='smoke';for(const weight of weights)weight.visible=name==='gym';const next=actions[name]??actions.idle;if(next===current)return;if(current)current.fadeOut(.2);next.reset().setEffectiveWeight(1).fadeIn(.2).play();current=next}
  play('idle');return {root,mixer,play,update,setSleeping,head};
 }

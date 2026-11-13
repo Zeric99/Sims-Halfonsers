@@ -1,3 +1,5 @@
+import {gardenFountain} from './garden-layout.js';
+
 // Rejilla doméstica compartida por el motor; coordenadas de la escena Three.js.
 const STEP=.5,MIN_X=-18,MIN_Z=-14,COLS=73,ROWS=69;
 const obstacles=[];
@@ -34,6 +36,7 @@ for(const [x,z] of [[-14,17],[14,17],[-17,14],[17,14]])obstacle(x,z,.45,.45);
 obstacle(6,16,2.5,.7);obstacle(-6,17,2,1.4);
 obstacle(-8.5,17.5,1.45,1.05);
 obstacle(-11.5,18.45,2.15,1.25);
+obstacle(gardenFountain.x,gardenFountain.z,2*gardenFountain.radius,2*gardenFountain.radius);
 // Soporte de pesas dibujado en el gimnasio del jardín.
 obstacle(11.4,18.2,1.9,.7);
 for(const x of [-17,17])obstacle(x,19,1.6,1.3);

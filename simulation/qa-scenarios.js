@@ -6,6 +6,26 @@ import {createWorld,advanceWorld} from './world.js';
 import {collectChronicle} from './chronicles.js';
 // Solo lo sirve dev-server; nunca escribe en el mundo del usuario.
 export function qaScenario(kind='meal',phase='eating',personIndex=0){
+ if(kind==='bathroom'){
+  const at=Date.UTC(2026,0,1,15);
+  const world=createWorld({seed:42,now:at});
+  world.nextGroupCheck=world.nextPlanCheck=at+86400000;
+  const [eric,linkal,mei]=world.people;
+  const person=phase==='polite'?linkal:eric;
+  const other=phase==='polite'?mei:linkal;
+  person.position={x:-8,z:-6};other.position={x:-9,z:-6};
+  if(phase==='computer'){
+   person.position={x:-14.5,z:-9.5};
+   person.action={id:'jugar',label:'jugando al ordenador',start:at-600000,until:at+600000,travelMs:0,route:[person.position],resource:null};
+   other.action={id:'asearse',label:'aseándose',start:at,until:at+600000,travelMs:0,route:[other.position],resource:'piso-1:bathroom'};
+   world.reservations['piso-1:bathroom']={personId:other.id,until:other.action.until};
+  }else openConversation(world,person,other,at);
+  person.needs.bano=4;
+  advanceWorld(world,at+1000);
+  const clock=phase==='seated'?person.action.start+person.action.travelMs+60000:
+   phase==='run'?person.action.start+Math.floor(person.action.travelMs*.6):at+1000;
+  return {world,serverTime:clock,clockRate:phase==='run'?22:1,mode:'escenario_local'};
+ }
  if(kind==='guide'){
   const fixture=qaScenario('spectator','repair');
   const {world,serverTime}=fixture;
