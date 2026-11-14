@@ -4,13 +4,21 @@ import { validateWorldEnvelope } from './world-schema.js';
 
 // El almacén aporta lectura y escritura condicional por versión.
 // Ante una colisión se vuelve a leer el estado ganador antes de reintentar.
-export async function advanceSharedWorld({read,write,now=Date.now,maxAttempts=5}){
+export async function advanceSharedWorld({read,write,now=Date.now,maxAttempts=5,minInterval=0,beforeAdvance}){
  for(let attempt=0;attempt<maxAttempts;attempt++){
   const row=await read();
   if(!row)throw new Error('Mundo no disponible');
   const world=row.state;
   validateWorldEnvelope(world,{schemaVersion:SCHEMA_VERSION,simulationVersion:ENGINE_VERSION});
   const wallNow=now(),isNewClock=!world.simulationClock;
+  if(minInterval>0&&world.simulationClock?.mode==='cycle29'&&world.simulationVersion===ENGINE_VERSION
+   &&wallNow-world.lastObservedAt>=0&&wallNow-world.lastObservedAt<minInterval){
+   const serverTime=simulationTime(world.simulationClock,world.lastObservedAt);
+   return {world,recovering:world.lastSimulatedAt<serverTime,serverTime,
+    clockRate:clockRateAt(world.simulationClock,serverTime),serverWallTime:world.lastObservedAt,
+    mode:'activo_con_visitantes',returned:false};
+  }
+  if(beforeAdvance)await beforeAdvance(world);
   if(isNewClock)world.simulationClock=createSimulationClock(wallNow);
   // Migrar relojes antiguos conservando exactamente la hora alcanzada.
   if(!isNewClock&&world.simulationClock.mode!=='cycle29'){

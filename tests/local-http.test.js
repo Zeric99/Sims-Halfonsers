@@ -4,6 +4,7 @@ import {spawn} from 'node:child_process';
 import {once} from 'node:events';
 import {mkdtemp,readFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
+import {applyWorldReading} from '../simulation/world-feed.js';
 import {join} from 'node:path';
 async function startServer(dir){
  const child=spawn(process.execPath,['dev-server.mjs'],{cwd:new URL('..',import.meta.url),env:{...process.env,SIMS_PORT:'18769',SIMS_DATA_DIR:dir},stdio:['ignore','pipe','pipe']});
@@ -16,6 +17,26 @@ test('dos clientes HTTP, desconexión y reinicio conservan el mundo local sin du
  try{
   server=await startServer(dir);const [a,b]=await Promise.all([visit(),visit()]);
   assert.equal(a.world.worldId,b.world.worldId);assert.equal(a.world.randomState,b.world.randomState);
+  const base='http://127.0.0.1:18769';
+  const read=async path=>{const response=await fetch(base+path);assert.equal(response.status,200);return response.json()};
+  const [publicA,publicB]=await Promise.all([read('/api/world?feed=1'),read('/api/world?feed=1')]);
+  assert.deepEqual(publicA,publicB);
+  assert.ok(!Object.hasOwn(publicA.world.people[0],'relationships'));
+  assert.ok(!Object.hasOwn(publicA.world,'phraseCatalog'));
+  const {resident}=await read('/api/world?resident='+a.world.people[0].id);
+  assert.equal(resident.name,a.world.people[0].name);
+  assert.ok(Array.isArray(resident.relationships));
+  assert.deepEqual(await read('/api/world?feed=1&since='+publicA.world.worldVersion),{unchanged:publicA.world.worldVersion});
+  assert.deepEqual(applyWorldReading(await read('/api/world?feed=1&since=99999')),publicA);
+
+  const postChat=async message=>{
+   const response=await fetch(base+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'Prueba',message})});
+   assert.equal(response.status,201);
+   return (await response.json()).message;
+  };
+  const first=await postChat('Primero'),second=await postChat('Segundo');
+  assert.deepEqual((await read('/api/chat?after='+first.id)).messages,[second]);
+  assert.deepEqual((await read('/api/chat?after='+second.id)).messages,[]);
   const endpoint='http://127.0.0.1:18769/api/phrases';
   const entry={personId:a.world.people[0].id,text:'en plan',kind:'filler'};
   const post=()=>fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});

@@ -1,5 +1,6 @@
+import {applyWorldReading, WORLD_REFRESH_MS} from './world-feed.js';
+import {pollWhileActive} from './active-poll.js';
 import {isDay,snapshotTime,clockRateAt} from './clock.js';
-import {describeMemory,relevantMemories} from './memory.js';
 import {activities} from './plans.js';
 import {groupBeat,groupKinds} from './group-events.js';
 import {describeStory} from './stories.js';
@@ -35,17 +36,38 @@ window.addEventListener('resident-follow',event=>{
 followButton.addEventListener('click',()=>{followed=followed===selectedResident?null:selectedResident;followButton.textContent=followed?'Dejar de seguir':'Seguir con la cámara';window.dispatchEvent(new CustomEvent('resident-follow',{detail:{name:followed}}))});
 document.querySelector('#watch-story').addEventListener('click',()=>{const world=window.sharedWorld?.world;if(!world)return;const person=world.people.find(p=>p.action?.id==='charlar')||world.people.find(p=>p.action?.meetingId||p.action?.planId);if(person){window.dispatchEvent(new CustomEvent('resident-select',{detail:{name:person.name}}));followed=person.name;followButton.textContent='Dejar de seguir';window.dispatchEvent(new CustomEvent('resident-follow',{detail:{name:followed}}))}});
 
+let residentDetails, loadingResident;
+
+async function loadResident(){
+ const reading=window.sharedWorld;
+ const person=reading?.world.people.find(person=>person.name===selectedResident);
+ if(!person||qa||(local&&query.has('inspector'))||document.hidden||loadingResident===person.id)return;
+ const id=person.id;
+ loadingResident=id;
+ try{
+  const response=await fetch('/api/world?resident='+encodeURIComponent(id),{signal:AbortSignal.timeout(10000)});
+  if(!response.ok)throw new Error();
+  const {resident}=await response.json();
+  if(selectedResident===person.name){residentDetails={id, info:resident};showResident();}
+ }catch{
+  if(selectedResident===person.name&&!residentDetails)details.textContent='No se pudo cargar la ficha. Reintentando…';
+ }finally{if(loadingResident===id)loadingResident=null;}
+}
+
 function showResident(){
  if(!selectedResident||!window.sharedWorld)return;
- const data=window.sharedWorld,info=describeResident(data.world,selectedResident,data.serverTime);
- if(!info){panel.hidden=true;return}
+ const data=window.sharedWorld,person=data.world.people.find(p=>p.name===selectedResident);
+ if(!person)return;
+ panel.hidden=false;residentTitle.textContent=person.name;
+ const info=(qa||(local&&query.has('inspector')))?describeResident(data.world,selectedResident,data.serverTime):residentDetails?.id===person.id?residentDetails.info:null;
+ if(!info){details.textContent='Cargando ficha…';return}
  panel.hidden=false;residentTitle.textContent=info.name;
  const fragment=document.createDocumentFragment();
  function row(label,value){const p=document.createElement('p'),b=document.createElement('strong');b.textContent=label+': ';p.append(b,document.createTextNode(value));fragment.append(p)}
  followButton.textContent=followed===info.name?'Dejar de seguir':'Seguir con la cámara';
  row('Ahora',info.current);row('Estado',({IDLE:'Sin actividad',MOVING:'En camino',WAITING:'Esperando',SLEEPING:'Durmiendo',ACTING:'Realizando actividad'})[info.execution]);row('Después',info.next);
- const person=data.world.people.find(p=>p.name===info.name);
- if(person.intention)row('Intención reciente',person.intention.text);
+ const intention=info.intention??person.intention?.text;
+ if(intention)row('Intención reciente',intention);
  row('Recuerdos',info.memories.map(memory=>memory.text+(memory.emotion?' · '+memory.emotion:''))
   .join(' / ')||'Todavía no hay recuerdos recientes.');
  if(info.goal){
@@ -81,7 +103,7 @@ function showResident(){
  }
  details.replaceChildren(fragment);
 }
-window.addEventListener('resident-select',event=>{selectedResident=event.detail.name;showResident();panel.scrollIntoView({block:'nearest',behavior:'smooth'})});
+window.addEventListener('resident-select',event=>{selectedResident=event.detail.name;residentDetails=null;showResident();void loadResident();panel.scrollIntoView({block:'nearest',behavior:'smooth'})});
 document.querySelector('#resident-close').addEventListener('click',()=>{selectedResident=null;panel.hidden=true});
 const clock=document.querySelector('#world-clock'), list=document.querySelector('#world-activities'), events=document.querySelector('#world-events');
 let lastVersion=-1;
@@ -104,15 +126,35 @@ function paintLiveGuide(){
 }
 async function refresh(){
  try{
-  const response=await fetch(qa?'/api/qa-world?'+query:'/api/world',{cache:'no-store',signal:AbortSignal.timeout(10000)});
+  const full=qa||(local&&query.has('inspector'));
+  const endpoint=qa?'/api/qa-world?'+query:full?'/api/world':'/api/world?feed=1';
+  const request=url=>fetch(url,{signal:AbortSignal.timeout(10000)});
+  const suffix=!full&&lastVersion>=0?'&since='+lastVersion:'';
+  let response=await request(endpoint+suffix);
   if(!response.ok)throw new Error('No disponible');
-  const data=await response.json(),world=data.world;
-  if(world.worldVersion<lastVersion)return;
+  let payload=await response.json();
+  if(payload.unchanged!==undefined){
+   connectionLost=false;
+   paintClock();
+   void loadResident();
+   return true;
+  }
+  let data=applyWorldReading(payload,window.sharedWorld);
+  if(!data){
+   response=await request(endpoint);
+   if(!response.ok)throw new Error('No disponible');
+   data=applyWorldReading(await response.json());
+   if(!data)throw new Error('Lectura incompleta');
+  }
+  const world=data.world;
+  if(world.worldId===window.sharedWorld?.world.worldId&&world.worldVersion<=lastVersion)return true;
   lastVersion=world.worldVersion;
-  data.receivedAt=performance.now();
+  const age=Number.isFinite(data.serverWallTime)?Math.min(16000,Math.max(0,Date.now()-data.serverWallTime)):0;
+  data.receivedAt=performance.now()-age;
   connectionLost=false;
   window.sharedWorld=data;
   showResident();
+  void loadResident();
   window.dispatchEvent(new CustomEvent('shared-world',{detail:data}));
   paintClock();
   const storyNames=new Map(world.people.map(p=>[p.id,p.name]));
@@ -148,7 +190,7 @@ async function refresh(){
   });
   agenda.querySelector('ul').replaceChildren(...groupEntries,...entries);
   const gossip=document.querySelector('#gossip-highlights');
-  if(gossip){const wasOpen=Boolean(gossip.querySelector('details')?.open),stats=neighbourhoodHighlights(world),cards=document.createDocumentFragment();
+  if(gossip){const wasOpen=Boolean(gossip.querySelector('details')?.open),stats=world.highlights??neighbourhoodHighlights(world),cards=document.createDocumentFragment();
    for(const [icon,title,entry,unit,empty] of [['✦','MEJOR ROLLO',stats.friendship,'amistad','Todavía no hay amistades registradas.'],['⚡','TENSIÓN',stats.tension,'tensión','Por ahora, reina la paz.']]){
     const row=document.createElement('div'),badge=document.createElement('span'),body=document.createElement('div'),label=document.createElement('small'),value=document.createElement('strong'),detail=document.createElement('span');
     row.className='gossip-row';badge.className='gossip-badge';badge.textContent=icon;label.textContent=title;
@@ -179,11 +221,7 @@ async function refresh(){
    const mess=world.households?.[person.homeId]?.mess;
    if(Number.isFinite(mess)){const homeState=document.createElement('p');homeState.textContent='Cocina: '+(mess<20?'recogida':mess<50?'algo desordenada':'necesita limpieza');card.append(homeState)}
    const needs=document.createElement('p');needs.textContent=Object.entries(person.needs).map(([k,v])=>(labels[k]||k)+' '+Math.round(v)).join(' · ');card.append(needs);
-   const relations=Object.entries(person.relationships||{}).sort((a,b)=>b[1].friendship-a[1].friendship).slice(0,3);
-   const friends=document.createElement('p');friends.textContent=relations.length?'Relaciones: '+relations.map(([id,r])=>(names.get(id)||'Vecino')+' (amistad '+Math.round(r.friendship)+', tensión '+Math.round(r.tension)+')').join(' · '):'Todavía no tiene relaciones registradas.';card.append(friends);
-   const memories=relevantMemories(person,data.serverTime,{limit:2}),memory=document.createElement('p');
-   memory.textContent=memories.length?'Recuerdos: '+memories.map(({memory})=>describeMemory(memory,names)).join(' · '):'Todavía no hay recuerdos recientes.';
-   card.append(memory);fragment.append(card);
+   fragment.append(card);
   }
   list.replaceChildren(fragment);
   const diary=document.createDocumentFragment();
@@ -197,17 +235,16 @@ async function refresh(){
    row.textContent=time+' · '+(describeStory(event,names)||messages[event.type]);diary.append(row);
   }
   events?.replaceChildren(diary);
+  return true;
  }catch{
   connectionLost=true;
   if(window.sharedWorld)paintClock();
   else clock.textContent='No se ha podido conectar con el mundo compartido. Reintentando…';
+  return false;
  }
 }
-async function pollWorld(){
- await refresh();
- if(!qa)setTimeout(pollWorld,5000);
-}
-pollWorld();
+if(qa)void refresh();
+else pollWhileActive(refresh,{active:()=>!document.hidden,delay:WORLD_REFRESH_MS});
 setInterval(paintClock,250);
 setInterval(paintLiveGuide,1000);
 if(local&&query.has('inspector')){

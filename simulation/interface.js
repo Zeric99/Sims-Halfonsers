@@ -18,6 +18,7 @@ function openPanel(name, restoreFocus = false) {
   document.querySelector('#drawer-title').textContent = titles[name] || 'Comunidad';
   if (restoreFocus) tabs.find(button => button.dataset.panelTarget === previous)?.focus();
   window.dispatchEvent(new Event('resize'));
+  window.dispatchEvent(new Event('community-panel-change'));
 }
 for (const button of tabs) button.addEventListener('click', () => openPanel(body.dataset.panel === button.dataset.panelTarget ? 'none' : button.dataset.panelTarget));
 document.querySelector('#drawer-close').addEventListener('click', () => openPanel('none', true));

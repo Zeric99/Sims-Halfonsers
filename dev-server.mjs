@@ -3,6 +3,7 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { resolve, sep, extname } from 'node:path';
 import { createWorld } from './simulation/world.js';
+import {createWorldFeed} from './simulation/world-feed.js';
 import { advanceSharedWorld } from './simulation/shared-world.js';
 import { normalizeChatMessage } from './simulation/chat-validation.js';
 import { localWorldStore } from './simulation/local-world-store.js';
@@ -14,19 +15,22 @@ const base=resolve('.'),started=Date.now(),dataDir=resolve(process.env.SIMS_DATA
 const localStore=await localWorldStore(resolve(dataDir,'world.json'),createWorld({seed:73184,now:started}));
 const chat=[];let chatSequence=0;
 const phraseStore=await localWorldStore(resolve(dataDir,'speech-catalog.json'),[]);
+const loadWorld=()=>advanceSharedWorld({
+ read:async()=>{const row=await localStore.read();row.state.phraseCatalog=(await phraseStore.read()).state;return row},
+ write:localStore.write
+});
+const localFeed=createWorldFeed(loadWorld);
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.css':'text/css; charset=utf-8'};
 http.createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,'http://127.0.0.1');
   if(url.pathname==='/api/qa-world'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify(qaScenario(url.searchParams.get('qa')||'meal',url.searchParams.get('phase')||'eating')))}
   if(url.pathname==='/api/world'){
-   const data=await advanceSharedWorld({
-    read:async()=>{const row=await localStore.read();row.state.phraseCatalog=(await phraseStore.read()).state;return row},
-    write:localStore.write
-   });
+   const params=Object.fromEntries(url.searchParams);
+   const data=await (params.feed==='1'||params.resident ? localFeed(params) : loadWorld());
    if(!data){res.writeHead(503,{'Content-Type':'application/json'});return res.end(JSON.stringify({error:'Mundo ocupado'}))}
    res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});
-   return res.end(JSON.stringify({...data,mode:'prueba_local'}));
+   return res.end(JSON.stringify(data.world||data.delta?{...data,mode:'prueba_local'}:data));
   }
   if(url.pathname==='/api/local-profile'){
    const reply=(status,body)=>{
@@ -70,7 +74,7 @@ http.createServer(async(req,res)=>{
   }
   if(url.pathname==='/api/phrases'){
    const reply=(status,body)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(body))};
-   if(req.method==='GET')return reply(200,{phrases:(await phraseStore.read()).state,mode:'prueba_local'});
+   if(req.method==='GET')return reply(200,{phrases:(await phraseStore.read()).state.filter(phrase=>!url.searchParams.has('resident')||phrase.personId===url.searchParams.get('resident')),mode:'prueba_local'});
    if(req.method!=='POST')return reply(405,{error:'Método no permitido'});
    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)return reply(413,{error:'Mensaje demasiado largo'})}
    let body;try{body=JSON.parse(raw)}catch{return reply(400,{error:'Datos inválidos'})}
@@ -87,7 +91,7 @@ http.createServer(async(req,res)=>{
   }
   if(url.pathname==='/api/chat'){
    const reply=(status,body)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(body))};
-   if(req.method==='GET')return reply(200,{messages:chat.slice(-100),mode:'prueba_local_temporal'});
+   if(req.method==='GET')return reply(200,{messages:chat.filter(message=>Number(message.id)>Number(url.searchParams.get('after')||0)).slice(-100),mode:'prueba_local_temporal'});
    if(req.method!=='POST')return reply(405,{error:'Método no permitido'});
    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)return reply(413,{error:'Mensaje demasiado largo'})}
    let body;try{body=JSON.parse(raw)}catch{return reply(400,{error:'Mensaje inválido'})}
