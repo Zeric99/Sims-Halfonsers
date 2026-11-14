@@ -1,4 +1,4 @@
-import { neon } from '@neondatabase/serverless';
+import {database, hasDatabase} from '../simulation/database.js';
 import { createWorld } from '../simulation/world.js';
 import { advanceSharedWorld } from '../simulation/shared-world.js';
 import {createWorldFeed,WORLD_REFRESH_MS} from '../simulation/world-feed.js';
@@ -10,7 +10,7 @@ let catalog;
 let catalogAt = 0;
 
 const worldFeed = createWorldFeed(async () => {
- const sql = neon(process.env.DATABASE_URL);
+ const sql = database();
  initialized ??= (async () => {
   await sql`CREATE TABLE IF NOT EXISTS sims_worlds (id text PRIMARY KEY, version bigint NOT NULL, state jsonb NOT NULL)`;
   await sql`CREATE TABLE IF NOT EXISTS sims_phrases (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, person_id text NOT NULL, text text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(person_id,text))`;
@@ -57,7 +57,7 @@ const worldFeed = createWorldFeed(async () => {
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');
  if(req.method!=='GET'){res.setHeader('Allow','GET');return res.status(405).json({error:'Método no permitido'})}
- if(!process.env.DATABASE_URL)return res.status(503).json({error:'Base de datos no configurada'});
+ if(!hasDatabase())return res.status(503).json({error:'Base de datos no configurada'});
  try{
   const {feed, since, resident} = req.query ?? {};
   if (resident !== undefined && (typeof resident !== 'string' || !/^mii-(?:[1-9]|1[0-4])$/.test(resident))) {

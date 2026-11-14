@@ -1,13 +1,13 @@
-import { neon } from '@neondatabase/serverless';
+import {database, hasDatabase, writeChat} from '../simulation/database.js';
 import { normalizeChatMessage } from '../simulation/chat-validation.js';
 let initialized;
 
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');
  if(!['GET','POST'].includes(req.method)){res.setHeader('Allow','GET, POST');return res.status(405).json({error:'Método no permitido'})}
- if(!process.env.DATABASE_URL)return res.status(503).json({error:'Chat no disponible'});
+ if(!hasDatabase())return res.status(503).json({error:'Chat no disponible'});
  try{
-  const sql=neon(process.env.DATABASE_URL);
+  const sql=database();
   initialized ??= sql`CREATE TABLE IF NOT EXISTS sims_chat (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, name text NOT NULL, message text NOT NULL, created_at timestamptz NOT NULL DEFAULT now())`.catch(error => { initialized=undefined; throw error; });
   await initialized;
   if(req.method==='GET'){
@@ -23,10 +23,7 @@ export default async function handler(req,res){
   const normalized=normalizeChatMessage(body);
   if(!normalized)return res.status(400).json({error:'Escribe un nombre y un mensaje válidos'});
   const {name,message}=normalized;
-  const [,rows]=await sql.transaction([
-   sql`SELECT pg_advisory_xact_lock(18561, 1)`,
-   sql`INSERT INTO sims_chat(name,message) SELECT ${name},${message} WHERE (SELECT count(*) FROM sims_chat WHERE lower(name)=lower(${name}) AND created_at>now()-interval '1 minute')<8 RETURNING id::text AS id,name,message,created_at`
-  ]);
+  const rows=await writeChat(sql, transaction=>transaction`INSERT INTO sims_chat(name,message) SELECT ${name},${message} WHERE (SELECT count(*) FROM sims_chat WHERE lower(name)=lower(${name}) AND created_at>now()-interval '1 minute')<8 RETURNING id::text AS id,name,message,created_at`);
   if(!rows.length)return res.status(429).json({error:'Espera un momento antes de enviar más mensajes'});
   return res.status(201).json({message:rows[0]});
  }catch(error){console.error('chat error',error?.name);return res.status(503).json({error:'No se pudo conectar con el chat'})}

@@ -1,4 +1,4 @@
-import { neon } from '@neondatabase/serverless';
+import {database, hasDatabase} from '../simulation/database.js';
 import { normalizePhrase } from '../simulation/phrases.js';
 import {ensureFillers,readSpeechCatalog} from '../simulation/phrase-database.js';
 let initialized;
@@ -6,14 +6,14 @@ let initialized;
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');
  if(!['GET','POST'].includes(req.method)){res.setHeader('Allow','GET, POST');return res.status(405).json({error:'Método no permitido'})}
- if(!process.env.DATABASE_URL)return res.status(503).json({error:'Frases no disponibles'});
+ if(!hasDatabase())return res.status(503).json({error:'Frases no disponibles'});
  let phrase;
  if(req.method==='POST'){
   let body;try{body=typeof req.body==='string'?JSON.parse(req.body):req.body}catch{return res.status(400).json({error:'Datos inválidos'})}
   phrase=normalizePhrase(body);if(!phrase)return res.status(400).json({error:'Máximo 100 caracteres para frases y 40 para muletillas.'});
  }
  try{
-  const sql=neon(process.env.DATABASE_URL);
+  const sql=database();
   initialized ??= (async()=>{
    await sql`CREATE TABLE IF NOT EXISTS sims_phrases (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, person_id text NOT NULL, text text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(person_id,text))`;
    await ensureFillers(sql);
