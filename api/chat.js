@@ -1,4 +1,4 @@
-import {database, hasDatabase, logDatabaseError, writeChat} from '../simulation/database.js';
+import {database, hasDatabase, logDatabaseError, usesManagedPostgres, writeChat} from '../simulation/database.js';
 import { normalizeChatMessage } from '../simulation/chat-validation.js';
 let initialized;
 
@@ -8,8 +8,10 @@ export default async function handler(req,res){
  if(!hasDatabase())return res.status(503).json({error:'Chat no disponible'});
  try{
   const sql=database();
-  initialized ??= sql`CREATE TABLE IF NOT EXISTS sims_chat (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, name text NOT NULL, message text NOT NULL, created_at timestamptz NOT NULL DEFAULT now())`.catch(error => { initialized=undefined; throw error; });
-  await initialized;
+  if (!usesManagedPostgres()) {
+   initialized ??= sql`CREATE TABLE IF NOT EXISTS sims_chat (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, name text NOT NULL, message text NOT NULL, created_at timestamptz NOT NULL DEFAULT now())`.catch(error => { initialized=undefined; throw error; });
+   await initialized;
+  }
   if(req.method==='GET'){
    const after=req.query?.after ?? '0';
    if(typeof after!=='string'||!/^\d{1,19}$/.test(after)||BigInt(after)>9223372036854775807n)

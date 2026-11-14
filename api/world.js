@@ -1,4 +1,4 @@
-import {database, hasDatabase, logDatabaseError} from '../simulation/database.js';
+import {database, hasDatabase, logDatabaseError, usesManagedPostgres} from '../simulation/database.js';
 import { createWorld } from '../simulation/world.js';
 import { advanceSharedWorld } from '../simulation/shared-world.js';
 import {createWorldFeed,WORLD_REFRESH_MS} from '../simulation/world-feed.js';
@@ -12,9 +12,11 @@ let catalogAt = 0;
 const worldFeed = createWorldFeed(async () => {
  const sql = database();
  initialized ??= (async () => {
-  await sql`CREATE TABLE IF NOT EXISTS sims_worlds (id text PRIMARY KEY, version bigint NOT NULL, state jsonb NOT NULL)`;
-  await sql`CREATE TABLE IF NOT EXISTS sims_phrases (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, person_id text NOT NULL, text text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(person_id,text))`;
-  await ensureFillers(sql);
+  if (!usesManagedPostgres()) {
+   await sql`CREATE TABLE IF NOT EXISTS sims_worlds (id text PRIMARY KEY, version bigint NOT NULL, state jsonb NOT NULL)`;
+   await sql`CREATE TABLE IF NOT EXISTS sims_phrases (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, person_id text NOT NULL, text text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(person_id,text))`;
+   await ensureFillers(sql);
+  }
   const initial=createWorld({now:Date.now(),seed:73184});
   await sql`INSERT INTO sims_worlds(id,version,state) VALUES ('casa',0,${JSON.stringify(initial)}::jsonb) ON CONFLICT (id) DO NOTHING`;
  })().catch(error => { initialized = undefined; throw error; });

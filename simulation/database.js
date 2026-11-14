@@ -9,6 +9,10 @@ function postgresUrl() {
  return process.env.SIMS_POSTGRES_URL || process.env.SIIMS_POSTGRES_URL;
 }
 
+export function usesManagedPostgres() {
+ return Boolean(postgresUrl());
+}
+
 export function hasDatabase() {
  return Boolean(postgresUrl() || process.env.DATABASE_URL);
 }

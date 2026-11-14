@@ -1,4 +1,4 @@
-import {database, hasDatabase, logDatabaseError} from '../simulation/database.js';
+import {database, hasDatabase, logDatabaseError, usesManagedPostgres} from '../simulation/database.js';
 import { normalizePhrase } from '../simulation/phrases.js';
 import {ensureFillers,readSpeechCatalog} from '../simulation/phrase-database.js';
 let initialized;
@@ -14,11 +14,13 @@ export default async function handler(req,res){
  }
  try{
   const sql=database();
-  initialized ??= (async()=>{
-   await sql`CREATE TABLE IF NOT EXISTS sims_phrases (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, person_id text NOT NULL, text text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(person_id,text))`;
-   await ensureFillers(sql);
-  })().catch(error=>{initialized=undefined;throw error;});
-  await initialized;
+  if (!usesManagedPostgres()) {
+   initialized ??= (async()=>{
+    await sql`CREATE TABLE IF NOT EXISTS sims_phrases (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, person_id text NOT NULL, text text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(person_id,text))`;
+    await ensureFillers(sql);
+   })().catch(error=>{initialized=undefined;throw error;});
+   await initialized;
+  }
   if(req.method==='GET'){
    const resident=req.query?.resident ?? null;
    if(resident!==null&&(typeof resident!=='string'||!/^mii-(?:[1-9]|1[0-4])$/.test(resident)))
