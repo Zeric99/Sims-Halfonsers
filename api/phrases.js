@@ -1,4 +1,4 @@
-import {database, hasDatabase} from '../simulation/database.js';
+import {database, hasDatabase, logDatabaseError} from '../simulation/database.js';
 import { normalizePhrase } from '../simulation/phrases.js';
 import {ensureFillers,readSpeechCatalog} from '../simulation/phrase-database.js';
 let initialized;
@@ -31,5 +31,5 @@ export default async function handler(req,res){
    :await sql`INSERT INTO sims_phrases(person_id,text) SELECT ${phrase.personId},${phrase.text} WHERE (SELECT count(*) FROM sims_phrases WHERE person_id=${phrase.personId})<50 ON CONFLICT (person_id,text) DO NOTHING RETURNING id::text AS id,person_id AS "personId",text`;
   if(!rows.length)return res.status(409).json({error:phrase.kind==='filler'?'La muletilla ya existe o este vecino tiene 20.':'La frase ya existe o este personaje tiene 50 frases.'});
   return res.status(201).json({phrase:rows[0]});
- }catch(error){console.error('phrase storage error',error?.name);return res.status(503).json({error:'No se pudieron guardar o cargar las frases'})}
+ }catch(error){logDatabaseError('phrases',error);return res.status(503).json({error:'No se pudieron guardar o cargar las frases'})}
 }

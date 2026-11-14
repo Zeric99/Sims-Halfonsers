@@ -1,4 +1,4 @@
-import {database, hasDatabase} from '../simulation/database.js';
+import {database, hasDatabase, logDatabaseError} from '../simulation/database.js';
 import { createWorld } from '../simulation/world.js';
 import { advanceSharedWorld } from '../simulation/shared-world.js';
 import {createWorldFeed,WORLD_REFRESH_MS} from '../simulation/world-feed.js';
@@ -72,5 +72,5 @@ export default async function handler(req,res){
   }
   if(result)return res.status(200).json(result);
   return res.status(503).json({error:'El mundo está ocupado; vuelve a intentarlo'});
- }catch(error){console.error('world storage error',error?.name);return res.status(503).json({error:'No se pudo cargar el mundo compartido'})}
+ }catch(error){logDatabaseError('world',error);return res.status(503).json({error:'No se pudo cargar el mundo compartido'})}
 }

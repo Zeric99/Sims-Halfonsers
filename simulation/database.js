@@ -35,3 +35,16 @@ export async function writeChat(sql, insert) {
  ]);
  return rows;
 }
+
+export function logDatabaseError(operation, error) {
+ const code = typeof error?.code === 'string' && /^[A-Z0-9_]{1,50}$/.test(error.code) ? error.code : 'unknown';
+ let provider = 'neon';
+ if (postgresUrl()) {
+  try {
+   provider = new URL(postgresUrl()).hostname.endsWith('.supabase.com') ? 'supabase' : 'postgres';
+  } catch {
+   provider = 'invalid-url';
+  }
+ }
+ console.error('Database operation failed', operation, provider, code);
+}

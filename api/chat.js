@@ -1,4 +1,4 @@
-import {database, hasDatabase, writeChat} from '../simulation/database.js';
+import {database, hasDatabase, logDatabaseError, writeChat} from '../simulation/database.js';
 import { normalizeChatMessage } from '../simulation/chat-validation.js';
 let initialized;
 
@@ -26,5 +26,5 @@ export default async function handler(req,res){
   const rows=await writeChat(sql, transaction=>transaction`INSERT INTO sims_chat(name,message) SELECT ${name},${message} WHERE (SELECT count(*) FROM sims_chat WHERE lower(name)=lower(${name}) AND created_at>now()-interval '1 minute')<8 RETURNING id::text AS id,name,message,created_at`);
   if(!rows.length)return res.status(429).json({error:'Espera un momento antes de enviar más mensajes'});
   return res.status(201).json({message:rows[0]});
- }catch(error){console.error('chat error',error?.name);return res.status(503).json({error:'No se pudo conectar con el chat'})}
+ }catch(error){logDatabaseError('chat',error);return res.status(503).json({error:'No se pudo conectar con el chat'})}
 }
